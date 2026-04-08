@@ -1,0 +1,29 @@
+# Environment
+.env
+.env.local
+
+# Build artifacts
+node_modules/
+out/
+cache/
+dist/
+
+# Foundry
+contracts/out/
+contracts/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Forge state (internal)
+.build-state.json
+.forge-state.json
+.conductor-state.json
+
+# Docs context (internal)
+docs/context/
