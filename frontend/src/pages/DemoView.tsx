@@ -25,7 +25,7 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
   const activeStreams = sentStreams?.filter((s) => s.active) || []
 
   return (
-    <div className="min-h-[calc(100vh-120px)]">
+    <div className="max-w-[960px] mx-auto px-5 py-6 min-h-[calc(100vh-120px)]">
       {/* Header */}
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-ghost-300 via-ghost-400 to-emerald-400 bg-clip-text text-transparent">
@@ -37,7 +37,7 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
       </div>
 
       {/* Split-screen layout */}
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-stretch" style={{ minHeight: '420px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-stretch" style={{ minHeight: '420px' }}>
         {/* Left: Sender Panel */}
         <div className="card p-6 flex flex-col">
           <div className="flex items-center gap-2.5 mb-5">
@@ -62,7 +62,7 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-3xl mb-3 opacity-30">G</div>
+                <img src="/logo.svg" alt="" className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="text-gray-600 text-sm">No active streams</p>
                 <p className="text-gray-700 text-xs mt-1">Create a stream to see it flow</p>
               </div>
@@ -148,15 +148,15 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
       </div>
 
       {/* Footer: Initia features */}
-      <div className="mt-8 flex items-center justify-center gap-6 text-[10px] uppercase tracking-widest text-gray-600">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] uppercase tracking-widest text-gray-600">
         <span>Own Minitia</span>
-        <span className="text-gray-800">|</span>
+        <span className="text-gray-800 hidden sm:inline">|</span>
         <span>ICosmos Precompile</span>
-        <span className="text-gray-800">|</span>
+        <span className="text-gray-800 hidden sm:inline">|</span>
         <span>Connect Oracle</span>
-        <span className="text-gray-800">|</span>
+        <span className="text-gray-800 hidden sm:inline">|</span>
         <span>minievm</span>
-        <span className="text-gray-800">|</span>
+        <span className="text-gray-800 hidden sm:inline">|</span>
         <span>Wallet Widget</span>
       </div>
     </div>

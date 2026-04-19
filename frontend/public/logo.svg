@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Ghost body -->
+  <path d="M32 6C20.954 6 12 14.954 12 26v20c0 1.5 1.8 2.2 2.8 1.1l4.2-4.6 4.5 4.6c.8.8 2.1.8 2.9 0L31 42.5l4.6 4.6c.8.8 2.1.8 2.9 0l4.5-4.6 4.2 4.6c1 1.1 2.8.4 2.8-1.1V26C50 14.954 41.046 6 32 6z" fill="url(#ghostGrad)" opacity="0.95"/>
+  <!-- Eyes -->
+  <circle cx="24.5" cy="27" r="3.5" fill="#0d1333"/>
+  <circle cx="39.5" cy="27" r="3.5" fill="#0d1333"/>
+  <!-- Eye shine -->
+  <circle cx="25.5" cy="25.5" r="1.2" fill="white" opacity="0.7"/>
+  <circle cx="40.5" cy="25.5" r="1.2" fill="white" opacity="0.7"/>
+  <!-- Stream lines flowing through ghost -->
+  <path d="M20 35c4-1 8 2 12 0s8-3 12-1" stroke="url(#streamGrad)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <path d="M20 39c4-1 8 2 12 0s8-3 12-1" stroke="url(#streamGrad)" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <defs>
+    <linearGradient id="ghostGrad" x1="12" y1="6" x2="50" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#748ffc"/>
+      <stop offset="0.5" stop-color="#4c6ef5"/>
+      <stop offset="1" stop-color="#3b5bdb"/>
+    </linearGradient>
+    <linearGradient id="streamGrad" x1="20" y1="35" x2="44" y2="35" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#91a7ff"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -44,7 +44,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
         <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-ghost-500 to-ghost-700 flex items-center justify-center text-2xl shadow-xl shadow-ghost-900/40">
           G
         </div>
-        <h2 className="text-2xl font-bold mb-3">Welcome to GhostPay</h2>
+        <h2 className="text-2xl font-bold mb-3 font-head">Welcome to GhostPay</h2>
         <p className="text-gray-400 max-w-md mx-auto mb-8">
           Connect your Initia wallet to start streaming continuous payments across rollups.
         </p>
@@ -56,7 +56,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-[960px] mx-auto px-5 py-6 space-y-8">
       {/* Claimable balance banner */}
       {claimable !== undefined && claimable > 0n && (
         <div className="card p-6 glow-green border-emerald-800/40">
@@ -123,7 +123,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
       {/* Sent streams */}
       <section>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold">Your Streams</h2>
+          <h2 className="text-lg font-semibold font-head">Your Streams</h2>
           <Link to="/create" className="btn-primary px-4 py-2 text-sm">
             New Stream
           </Link>

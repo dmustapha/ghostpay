@@ -197,8 +197,14 @@ contract StreamSender {
             IPaymentRegistry.processPayment,
             (s.streamId, s.senderCosmos, s.receiver, s.destChannel, s.totalAmount, s.endTime, amount, tickNumber, s.ratePerTick)
         );
-        (bool ok,) = reg.call(payload);
-        require(ok, "Registry processPayment failed");
+        (bool ok, bytes memory returnData) = reg.call(payload);
+        if (!ok) {
+            // Bubble up the registry's revert reason if available
+            if (returnData.length > 0) {
+                assembly { revert(add(returnData, 32), mload(returnData)) }
+            }
+            revert("Registry processPayment failed");
+        }
     }
 
     receive() external payable {}

@@ -58,7 +58,7 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
         }],
       })
 
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Create stream failed:', err)
       setTxError(err instanceof Error ? err.message : 'Transaction failed. Check console for details.')
@@ -74,8 +74,8 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
   const ratePerTick = amountBigInt > 0n ? amountBigInt / BigInt(tickCount) : 0n
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold mb-2">Create Payment Stream</h2>
+    <div className="max-w-[560px] mx-auto px-5 py-6">
+      <h2 className="text-2xl font-bold mb-2 font-head">Create Payment Stream</h2>
       <p className="text-sm text-gray-500 mb-6">Set up a continuous payment that flows automatically every 30 seconds.</p>
 
       <div className="card p-6 space-y-5">
