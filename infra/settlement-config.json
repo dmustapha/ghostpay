@@ -1,0 +1,57 @@
+{
+  "l1_config": {
+    "chain_id": "initiation-2",
+    "rpc_url": "https://rpc.testnet.initia.xyz:443",
+    "gas_prices": "0.015uinit"
+  },
+  "l2_config": {
+    "chain_id": "ghostpay-settlement-1",
+    "denom": "umin",
+    "moniker": "ghostpay-settlement"
+  },
+  "op_bridge": {
+    "output_submission_interval": "3600s",
+    "output_finalization_period": "3600s",
+    "output_submission_start_height": 0,
+    "batch_submission_target": "INITIA",
+    "enable_oracle": true
+  },
+  "system_keys": {
+    "validator": {
+      "l1_address": "init19738c8lzsfaqr5auntsqqtxp80eacgv9xdvcsg",
+      "l2_address": "init19738c8lzsfaqr5auntsqqtxp80eacgv9xdvcsg",
+      "da_address": "init19738c8lzsfaqr5auntsqqtxp80eacgv9xdvcsg",
+      "mnemonic": "knock green village carry reunion luggage accuse chat broccoli bundle brother bounce move pen seat height actress ripple link need tattoo quiz enemy food"
+    },
+    "bridge_executor": {
+      "l1_address": "init14gfw6m2j3ldy79d50yhccw2vmtwv02dzqtr7kj",
+      "l2_address": "init14gfw6m2j3ldy79d50yhccw2vmtwv02dzqtr7kj",
+      "da_address": "init14gfw6m2j3ldy79d50yhccw2vmtwv02dzqtr7kj",
+      "mnemonic": "yellow pet wrestle story exist metal pen entire economy baby ugly furnace chair wear treat plug guilt quality drill first clarify stock social celery"
+    },
+    "output_submitter": {
+      "l1_address": "init14tw7fdhe3cmyc55fw2l6mna0ycryw5s8smdfj2",
+      "l2_address": "init14tw7fdhe3cmyc55fw2l6mna0ycryw5s8smdfj2",
+      "da_address": "init14tw7fdhe3cmyc55fw2l6mna0ycryw5s8smdfj2",
+      "mnemonic": "stomach art loop group scatter seat ancient any hill adult spirit you citizen install like orbit wheel labor merit model grief obey fortune burden"
+    },
+    "batch_submitter": {
+      "l1_address": "init1yzvr7c4cd4v2a9qy2zk4prtnh88ck63hmpa7w6",
+      "l2_address": "init1yzvr7c4cd4v2a9qy2zk4prtnh88ck63hmpa7w6",
+      "da_address": "init1yzvr7c4cd4v2a9qy2zk4prtnh88ck63hmpa7w6",
+      "mnemonic": "twelve cement file render access invite later sign voice dignity unique hotel blast author turkey swap potato renew liberty property gloom size fade real"
+    },
+    "challenger": {
+      "l1_address": "init13ma85vwg2prjyzeg8e4n0v4am3tr7jt23yg7jk",
+      "l2_address": "init13ma85vwg2prjyzeg8e4n0v4am3tr7jt23yg7jk",
+      "da_address": "init13ma85vwg2prjyzeg8e4n0v4am3tr7jt23yg7jk",
+      "mnemonic": "negative sadness antique humor pilot angle deal fade index toward asthma boost immune goddess artwork bamboo soldier damage impact old fire few element network"
+    }
+  },
+  "genesis_accounts": [
+    {
+      "address": "init1sxqh6akhcvgzj7r2fajr6ns88xsw3c0tzczhec",
+      "coins": "100000000umin"
+    }
+  ]
+}

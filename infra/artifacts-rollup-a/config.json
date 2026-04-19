@@ -1,0 +1,79 @@
+{
+ "l1_config": {
+  "chain_id": "initiation-2",
+  "rpc_url": "https://rpc.testnet.initia.xyz:443",
+  "gas_prices": "0.015uinit"
+ },
+ "l2_config": {
+  "chain_id": "ghostpay-rollup-a-1",
+  "denom": "ugpa",
+  "moniker": "ghostpay-rollup-a",
+  "block_max_bytes": 22020096,
+  "block_max_gas": 100000000
+ },
+ "op_bridge": {
+  "output_submission_interval": "1h0m0s",
+  "output_finalization_period": "1h0m0s",
+  "output_submission_start_height": 1,
+  "batch_submission_target": "INITIA",
+  "enable_oracle": false
+ },
+ "system_keys": {
+  "admin": {
+   "l1_address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3",
+   "l2_address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3",
+   "mnemonic": "wheat method comic uniform expand guitar title upper scene bus inquiry desert pepper teach damage giggle unveil vacant fashion purchase soccer shadow west symbol"
+  },
+  "validator": {
+   "l1_address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3",
+   "l2_address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3",
+   "da_address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3",
+   "mnemonic": "wheat method comic uniform expand guitar title upper scene bus inquiry desert pepper teach damage giggle unveil vacant fashion purchase soccer shadow west symbol"
+  },
+  "bridge_executor": {
+   "l1_address": "init1jzq3e3lu9lg7h787wcz0kaar24usxtymelm8zu",
+   "l2_address": "init1jzq3e3lu9lg7h787wcz0kaar24usxtymelm8zu",
+   "da_address": "init1jzq3e3lu9lg7h787wcz0kaar24usxtymelm8zu",
+   "mnemonic": "all aunt major become picture cycle ritual exist level fitness popular copper dutch drink blouse valley vast eight monitor ship icon announce cancel render"
+  },
+  "output_submitter": {
+   "l1_address": "init10j75p8md5c3jjvs5fakq4kq7edudehxtrsjlv4",
+   "l2_address": "init10j75p8md5c3jjvs5fakq4kq7edudehxtrsjlv4",
+   "da_address": "init10j75p8md5c3jjvs5fakq4kq7edudehxtrsjlv4",
+   "mnemonic": "spot detect soup unique deal letter caution addict angle struggle mad hello window jacket curious motion stay race left transfer knee surge peanut cabbage"
+  },
+  "batch_submitter": {
+   "l1_address": "init10en070gahnkkcpwm74ykxyx9dws56zj5d8s700",
+   "l2_address": "init10en070gahnkkcpwm74ykxyx9dws56zj5d8s700",
+   "da_address": "init10en070gahnkkcpwm74ykxyx9dws56zj5d8s700",
+   "mnemonic": "assume face casino pulp simple skull cat face illegal whip transfer marine angry unfold grow citizen picture lounge guard emerge vacuum praise idea basic"
+  },
+  "challenger": {
+   "l1_address": "init1l3jv8rfdwvnkcxp7z3cm63yuffn0v9w465v000",
+   "l2_address": "init1l3jv8rfdwvnkcxp7z3cm63yuffn0v9w465v000",
+   "da_address": "init1l3jv8rfdwvnkcxp7z3cm63yuffn0v9w465v000",
+   "mnemonic": "nasty offer old fringe episode liquid stand lumber habit thank beach finger state forward rain zone snap aunt combine decide fossil stove uphold become"
+  }
+ },
+ "genesis_accounts": [
+  {
+   "address": "init1sxqh6akhcvgzj7r2fajr6ns88xsw3c0tzczhec",
+   "coins": "100000000ugpa"
+  },
+  {
+   "address": "init1kdhxmtn6k39wvf7xqaegusqvpjg38paru5v6x3"
+  },
+  {
+   "address": "init1jzq3e3lu9lg7h787wcz0kaar24usxtymelm8zu"
+  },
+  {
+   "address": "init10j75p8md5c3jjvs5fakq4kq7edudehxtrsjlv4"
+  },
+  {
+   "address": "init10en070gahnkkcpwm74ykxyx9dws56zj5d8s700"
+  },
+  {
+   "address": "init1l3jv8rfdwvnkcxp7z3cm63yuffn0v9w465v000"
+  }
+ ]
+}

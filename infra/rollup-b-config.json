@@ -1,0 +1,57 @@
+{
+  "l1_config": {
+    "chain_id": "initiation-2",
+    "rpc_url": "https://rpc.testnet.initia.xyz:443",
+    "gas_prices": "0.015uinit"
+  },
+  "l2_config": {
+    "chain_id": "ghostpay-rollup-b-1",
+    "denom": "ugpb",
+    "moniker": "ghostpay-rollup-b"
+  },
+  "op_bridge": {
+    "output_submission_interval": "3600s",
+    "output_finalization_period": "3600s",
+    "output_submission_start_height": 0,
+    "batch_submission_target": "INITIA",
+    "enable_oracle": false
+  },
+  "system_keys": {
+    "validator": {
+      "l1_address": "init1v5gnczew3fg83r402auhg4xqdenjuu5gau6nf3",
+      "l2_address": "init1v5gnczew3fg83r402auhg4xqdenjuu5gau6nf3",
+      "da_address": "init1v5gnczew3fg83r402auhg4xqdenjuu5gau6nf3",
+      "mnemonic": "umbrella box ball office rely coin neutral horn odor spoon change endorse protect giggle tag market grace inquiry initial twin leave wolf delay tired"
+    },
+    "bridge_executor": {
+      "l1_address": "init1e70mptzg39kp459gu7lz2hc3pjssctchep578g",
+      "l2_address": "init1e70mptzg39kp459gu7lz2hc3pjssctchep578g",
+      "da_address": "init1e70mptzg39kp459gu7lz2hc3pjssctchep578g",
+      "mnemonic": "furnace hedgehog omit popular genuine accident fox cube praise step phrase noble flag seminar ski cheese author all pigeon weird praise parade length push"
+    },
+    "output_submitter": {
+      "l1_address": "init1kghdg0ya9p3qyfdm94pm7gm3dpw2zpawcunxfc",
+      "l2_address": "init1kghdg0ya9p3qyfdm94pm7gm3dpw2zpawcunxfc",
+      "da_address": "init1kghdg0ya9p3qyfdm94pm7gm3dpw2zpawcunxfc",
+      "mnemonic": "cash negative sail pledge message control course scorpion bridge spot pull carpet end appear possible tornado skate renew royal bike shiver vocal local stamp"
+    },
+    "batch_submitter": {
+      "l1_address": "init1mz60ag2tdwz4c8dqvkmcuwkpnwk7fc2dwgcppu",
+      "l2_address": "init1mz60ag2tdwz4c8dqvkmcuwkpnwk7fc2dwgcppu",
+      "da_address": "init1mz60ag2tdwz4c8dqvkmcuwkpnwk7fc2dwgcppu",
+      "mnemonic": "obvious follow breeze pottery crowd hat future title arctic thing chronic outdoor judge deny destroy rough wood gauge bind hospital fix addict candy parent"
+    },
+    "challenger": {
+      "l1_address": "init1v06l4nzsz59le0csynmc77zmgymmzg40dhda5h",
+      "l2_address": "init1v06l4nzsz59le0csynmc77zmgymmzg40dhda5h",
+      "da_address": "init1v06l4nzsz59le0csynmc77zmgymmzg40dhda5h",
+      "mnemonic": "hidden switch ring live easily myself same venture divide mom hollow deposit sauce air west mass adjust paper hotel blur ask bacon divorce awesome"
+    }
+  },
+  "genesis_accounts": [
+    {
+      "address": "init1sxqh6akhcvgzj7r2fajr6ns88xsw3c0tzczhec",
+      "coins": "100000000ugpb"
+    }
+  ]
+}

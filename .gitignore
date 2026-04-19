@@ -11,6 +11,7 @@ dist/
 # Foundry
 contracts/out/
 contracts/cache/
+contracts/broadcast/
 
 # OS
 .DS_Store
@@ -20,10 +21,16 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Forge state (internal)
+# Pipeline state (internal)
 .build-state.json
 .forge-state.json
 .conductor-state.json
+.debug-state.json
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
 
 # Docs context (internal)
 docs/context/
