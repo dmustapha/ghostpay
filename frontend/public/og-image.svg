@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0d1333"/>
+  <rect width="1200" height="630" fill="url(#bgGrad)" opacity="0.5"/>
+
+  <!-- Ghost logo centered-left -->
+  <g transform="translate(360, 155) scale(2.5)">
+    <path d="M32 6C20.954 6 12 14.954 12 26v20c0 1.5 1.8 2.2 2.8 1.1l4.2-4.6 4.5 4.6c.8.8 2.1.8 2.9 0L31 42.5l4.6 4.6c.8.8 2.1.8 2.9 0l4.5-4.6 4.2 4.6c1 1.1 2.8.4 2.8-1.1V26C50 14.954 41.046 6 32 6z" fill="url(#ghostGrad2)" opacity="0.95"/>
+    <circle cx="24.5" cy="27" r="3.5" fill="#0d1333"/>
+    <circle cx="39.5" cy="27" r="3.5" fill="#0d1333"/>
+    <circle cx="25.5" cy="25.5" r="1.2" fill="white" opacity="0.7"/>
+    <circle cx="40.5" cy="25.5" r="1.2" fill="white" opacity="0.7"/>
+    <path d="M20 35c4-1 8 2 12 0s8-3 12-1" stroke="url(#streamGrad2)" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+    <path d="M20 39c4-1 8 2 12 0s8-3 12-1" stroke="url(#streamGrad2)" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  </g>
+
+  <!-- Text -->
+  <text x="600" y="430" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="white">GhostPay</text>
+  <text x="600" y="480" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#91a7ff" opacity="0.8">Continuous payment streams on Initia</text>
+
+  <!-- Subtle stream lines across bottom -->
+  <path d="M0 560c100-20 200 20 300 0s200-20 300 0 200 20 300 0 200-20 300 0" stroke="url(#streamGrad2)" stroke-width="2" stroke-linecap="round" opacity="0.15"/>
+  <path d="M0 580c100-15 200 15 300 0s200-15 300 0 200 15 300 0 200-15 300 0" stroke="url(#streamGrad2)" stroke-width="1.5" stroke-linecap="round" opacity="0.1"/>
+
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="30%" r="60%">
+      <stop offset="0" stop-color="#4c6ef5" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="transparent"/>
+    </radialGradient>
+    <linearGradient id="ghostGrad2" x1="12" y1="6" x2="50" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#748ffc"/>
+      <stop offset="0.5" stop-color="#4c6ef5"/>
+      <stop offset="1" stop-color="#3b5bdb"/>
+    </linearGradient>
+    <linearGradient id="streamGrad2" x1="0" y1="0" x2="1200" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#91a7ff"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+</svg>

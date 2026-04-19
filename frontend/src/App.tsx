@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WalletWidgetProvider, useWallet, TESTNET } from '@initia/react-wallet-widget'
 import { Layout } from './components/Layout'
+import { Landing } from './pages/Landing'
 import { Dashboard } from './pages/Dashboard'
 import { CreateStream } from './pages/CreateStream'
 import { DemoView } from './pages/DemoView'
@@ -47,16 +48,10 @@ function AppRoutes() {
 
   return (
     <Layout>
-      {!address && (
-        <div className="card border-ghost-700/30 text-sm text-center py-3 px-4 mb-6 cursor-pointer hover:border-ghost-600/40 transition-colors"
-          onClick={() => wallet.onboard()}>
-          <span className="text-ghost-300">Connect your Initia wallet</span>
-          <span className="text-gray-500"> to start streaming payments</span>
-        </div>
-      )}
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route
-          path="/"
+          path="/dashboard"
           element={<Dashboard address={address} wallet={dashboardWallet} />}
         />
         <Route

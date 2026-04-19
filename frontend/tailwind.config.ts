@@ -19,12 +19,16 @@ export default {
           950: '#0d1333',
         },
       },
+      fontFamily: {
+        head: ['"Clash Display"', 'sans-serif'],
+      },
       animation: {
         'pulse-slow': 'pulse 3s ease-in-out infinite',
         'flow': 'flow 2s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite',
         'float': 'float 3s ease-in-out infinite',
         'shimmer': 'shimmer 2s linear infinite',
+        'flow-down': 'flow-down 2s ease-in-out infinite',
       },
       keyframes: {
         flow: {
@@ -42,6 +46,12 @@ export default {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        'flow-down': {
+          '0%': { opacity: '0', transform: 'translateY(0)' },
+          '20%': { opacity: '1' },
+          '80%': { opacity: '1' },
+          '100%': { opacity: '0', transform: 'translateY(200px)' },
         },
       },
       backgroundImage: {

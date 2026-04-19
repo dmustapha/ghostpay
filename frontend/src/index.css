@@ -51,3 +51,18 @@
 .glow-green {
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), 0 0 60px rgba(16, 185, 129, 0.05);
 }
+
+/* GhostPay design system — Hybrid F */
+.gp-grad-text {
+  background: linear-gradient(135deg, #4c6ef5 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flow-down,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
