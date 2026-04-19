@@ -1,0 +1,49 @@
+{
+  "l1_config": {
+    "chain_id": "initiation-2",
+    "rpc_url": "https://rpc.testnet.initia.xyz:443",
+    "gas_prices": "0.015uinit"
+  },
+  "l2_config": {
+    "chain_id": "ghostpay-1",
+    "denom": "umin",
+    "moniker": "ghostpay-validator"
+  },
+  "op_bridge": {
+    "output_submission_interval": "3600s",
+    "output_finalization_period": "3600s",
+    "output_submission_start_height": 1,
+    "batch_submission_target": "INITIA",
+    "enable_oracle": true
+  },
+  "system_keys": {
+    "validator": {
+      "l2_address": "init1z3sc4hv8eua6rd7ecnv2je5xfplere9tfnwzft",
+      "mnemonic": "either brush board announce describe rail indicate deny hamster isolate alley saddle version hover assault asthma path deputy knife outer spirit mobile hybrid happy"
+    },
+    "bridge_executor": {
+      "l1_address": "init1an5g0cpyw38zy2vj460xl2yh4hqsm0a6py9554",
+      "l2_address": "init1an5g0cpyw38zy2vj460xl2yh4hqsm0a6py9554",
+      "mnemonic": "service leg language zoo simple arena candy picnic foster eight plate armed dirt shock aunt prosper genius affair circle offer insane pair movie put"
+    },
+    "output_submitter": {
+      "l1_address": "init14sfqet7zdx4spgh3p8fl26ycwg5km9au2esg3y",
+      "mnemonic": "virus debate chest dragon layer snake physical bottom pumpkin scare blind okay crawl violin visit strike battle assist force dignity infant settle network diamond"
+    },
+    "batch_submitter": {
+      "da_address": "init1uyxkyd8z5cznpwmfn0nelunpj8ugqxs65ulznv",
+      "mnemonic": "expire blur sleep mixed describe wagon season change busy fold exist verb north wolf hollow attend hero mosquito opera siege diesel mosquito possible coil"
+    },
+    "challenger": {
+      "l1_address": "init1hd6953hcchfxs2crqxjnwdklpyz3gprk57j3qz",
+      "l2_address": "init1hd6953hcchfxs2crqxjnwdklpyz3gprk57j3qz",
+      "mnemonic": "sauce beyond pen boy alpha lamp atom fiber pilot gift trap throw notice scene lawsuit angry govern today arena angry filter debate poem loan"
+    }
+  },
+  "genesis_accounts": [
+    {
+      "address": "init1sxqh6akhcvgzj7r2fajr6ns88xsw3c0tzczhec",
+      "coins": "1000000000umin"
+    }
+  ]
+}

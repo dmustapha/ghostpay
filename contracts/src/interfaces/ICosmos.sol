@@ -6,7 +6,10 @@ pragma solidity ^0.8.24;
 interface ICosmos {
     /// @notice Execute a Cosmos SDK message as JSON string
     /// @param msg The JSON-encoded Cosmos SDK message
-    function execute_cosmos(string memory msg) external;
+    /// @param execGas Gas limit for the cosmos message execution
+    /// @return success Whether the execution succeeded
+    /// @dev DEV-003: minievm v1.2.15 requires (string,uint64) signature, not (string)
+    function execute_cosmos(string memory msg, uint64 execGas) external returns (bool success);
 
     /// @notice Convert an EVM address to its corresponding bech32 Cosmos address
     /// @param addr The EVM address to convert

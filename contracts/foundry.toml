@@ -3,12 +3,16 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "forge-std/=lib/forge-std/src/"
+]
 solc_version = "0.8.24"
 via_ir = true
 optimizer = true
 optimizer_runs = 200
 
 [rpc_endpoints]
-rollup_a = "${ROLLUP_A_RPC}"
+# rollup_a = "${ROLLUP_A_RPC}"  # DEV-007: not used, commented to avoid forge failure on clean .env
 settlement = "${SETTLEMENT_RPC}"
-rollup_b = "${ROLLUP_B_RPC}"
+# rollup_b = "${ROLLUP_B_RPC}"  # DEV-007: not used, commented to avoid forge failure on clean .env
