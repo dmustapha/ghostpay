@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
+import { FEATURES } from '../config/feature-flags'
 
 interface Packet {
   id: number
-  progress: number
   phase: 'hop1' | 'hop2'
+  startTime: number
 }
+
+const PHASE_DURATION_MS = 3000 // 3s per hop phase
 
 interface BridgeVisualizationProps {
   activeStreamCount: number
@@ -18,25 +21,23 @@ export function BridgeVisualization({ activeStreamCount, lastTickTime }: BridgeV
   useEffect(() => {
     if (!lastTickTime) return
     const id = nextIdRef.current++
-    setPackets((prev) => [...prev, { id, progress: 0, phase: 'hop1' }])
-  }, [lastTickTime])
+    const now = Date.now()
+    setPackets((prev) => [...prev, { id, phase: 'hop1', startTime: now }])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
+    // Transition hop1 → hop2 after PHASE_DURATION_MS
+    const t1 = setTimeout(() => {
       setPackets((prev) =>
-        prev
-          .map((p) => {
-            const newProgress = p.progress + 1.5
-            if (newProgress >= 100 && p.phase === 'hop1') {
-              return { ...p, progress: 0, phase: 'hop2' as const }
-            }
-            return { ...p, progress: newProgress }
-          })
-          .filter((p) => !(p.phase === 'hop2' && p.progress >= 100))
+        prev.map((p) => p.id === id ? { ...p, phase: 'hop2', startTime: Date.now() } : p)
       )
-    }, 50)
-    return () => clearInterval(interval)
-  }, [])
+    }, PHASE_DURATION_MS)
+
+    // Remove after both phases complete
+    const t2 = setTimeout(() => {
+      setPackets((prev) => prev.filter((p) => p.id !== id))
+    }, PHASE_DURATION_MS * 2)
+
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [lastTickTime])
 
   const isActive = activeStreamCount > 0
 
@@ -44,7 +45,7 @@ export function BridgeVisualization({ activeStreamCount, lastTickTime }: BridgeV
     <div className="flex flex-col items-center justify-center gap-3 px-2 py-4 min-w-[56px]">
       {/* Top label */}
       <div className="text-[10px] uppercase tracking-widest text-gray-500 font-medium">
-        Settlement
+        {FEATURES.IBC_MODE ? 'Rollup A' : 'Settlement'}
       </div>
 
       {/* Bridge tube */}
@@ -73,8 +74,8 @@ export function BridgeVisualization({ activeStreamCount, lastTickTime }: BridgeV
             .map((p) => (
               <div
                 key={p.id}
-                className="absolute left-1/2 -translate-x-1/2"
-                style={{ top: `${p.progress}%` }}
+                className="absolute left-1/2 -translate-x-1/2 animate-[slideDown_3s_linear_forwards]"
+                style={{ top: '0%' }}
               >
                 <div className="w-3.5 h-3.5 rounded-full bg-ghost-400 shadow-lg shadow-ghost-400/60" />
                 <div className="absolute inset-0 w-3.5 h-3.5 rounded-full bg-ghost-400/30 animate-ping" />
@@ -89,8 +90,8 @@ export function BridgeVisualization({ activeStreamCount, lastTickTime }: BridgeV
             .map((p) => (
               <div
                 key={p.id}
-                className="absolute left-1/2 -translate-x-1/2"
-                style={{ top: `${p.progress}%` }}
+                className="absolute left-1/2 -translate-x-1/2 animate-[slideDown_3s_linear_forwards]"
+                style={{ top: '0%' }}
               >
                 <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/60" />
                 <div className="absolute inset-0 w-3.5 h-3.5 rounded-full bg-emerald-400/30 animate-ping" />

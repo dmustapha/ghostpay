@@ -1,51 +1,12 @@
 {
   "project_name": "GhostPay",
-  "track": "DeFi",
-  "tagline": "Continuous payment streams on Initia minievm",
-  "description": "Payment streaming infrastructure on Initia minievm. Turns lump-sum payments into continuous money streams with per-tick delivery, real-time USD conversion via Connect Oracle, and claimable balances — all powered by the ICosmos precompile on minievm.",
-  "team": ["dami"],
-  "github_url": "https://github.com/dmustapha/ghostpay",
-  "contracts": {
-    "stream_sender": {
-      "address": "0x372252244EAe0a59da17d1bbb940fF584cE6d2fD",
-      "chain": "ghostpay-1",
-      "cosmos_address": "init1xu39yfzw4c99nksh6xamjs8ltpxwd5hadwgy4c"
-    },
-    "payment_registry": {
-      "address": "0xb5Bd8728Fc379b5EE0E3f69f3DE35dB286EE7aE0",
-      "chain": "ghostpay-1",
-      "cosmos_address": "init1kk7cw28ux7d4ac8r760nmc6ak2rwu7hqd7yc7q"
-    },
-    "stream_receiver": {
-      "address": "0x644cb302B34c4c02168Eb40F33bC7660F0254676",
-      "chain": "ghostpay-1",
-      "cosmos_address": "init1v3xtxq4nf3xqy95wks8n80rkvrcz23nkxr60nf"
-    }
-  },
-  "infrastructure": {
-    "settlement": {
-      "chain_id": "ghostpay-1",
-      "evm_chain_id": 4176544518788163,
-      "bridge_id": 1808,
-      "type": "minievm",
-      "l1_chain_id": "initiation-2"
-    }
-  },
-  "initia_features": [
-    "own_minitia",
-    "connect_oracle",
-    "icosmos_precompile",
-    "minievm",
-    "wallet_widget"
-  ],
-  "tech_stack": {
-    "contracts": "Solidity (Foundry, 3 contracts, 115 tests)",
-    "frontend": "TypeScript (Vite + React + @initia/react-wallet-widget + viem)",
-    "chain": "Initia minievm minitia (ghostpay-1, Bridge ID 1808)"
-  },
-  "screenshots": [
-    "screenshots/demo-view.png",
-    "screenshots/dashboard-disconnected.png",
-    "screenshots/create-stream.png"
-  ]
+  "repo_url": "https://github.com/dmustapha/ghostpay",
+  "commit_sha": "PENDING",
+  "rollup_chain_id": "ghostpay-1",
+  "deployed_address": "0x69C58360fa715717C5D72Eb21EB3fDe69231A4A7",
+  "vm": "evm",
+  "native_feature": "auto-signing",
+  "core_logic_path": "contracts/src/StreamSender.sol",
+  "native_feature_frontend_path": "frontend/src/hooks/useAutoSign.ts",
+  "demo_video_url": "PENDING"
 }

@@ -35,7 +35,7 @@ Receiver → StreamReceiver.claim() → cosmos bank send to receiver
 | **ICosmos Precompile** | Contracts execute cosmos bank sends for token transfers |
 | **Connect Oracle** | Real-time INIT/USD price for every tick payment |
 | **minievm** | Solidity contracts with cosmos interop via `0xf1` precompile |
-| **Wallet Widget** | `@initia/react-wallet-widget` for seamless wallet connection |
+| **InterwovenKit** | `@initia/interwovenkit-react` for seamless wallet connection |
 
 ## Architecture
 
@@ -56,16 +56,17 @@ Chain: `ghostpay-1` (minievm)
 
 | Contract | Address |
 |----------|---------|
-| StreamSender | `0x372252244EAe0a59da17d1bbb940fF584cE6d2fD` |
-| PaymentRegistry | `0xb5Bd8728Fc379b5EE0E3f69f3DE35dB286EE7aE0` |
-| StreamReceiver | `0x644cb302B34c4c02168Eb40F33bC7660F0254676` |
+| StreamSender | `0x69C58360fa715717C5D72Eb21EB3fDe69231A4A7` |
+| PaymentRegistry | `0xaE53c86bA6a0C90e607E571FEc1F22DC591ED634` |
+| StreamReceiver | `0x6890d4576c55410831CD3A01bf0e40F3C0B984A9` |
 
 ## Tech Stack
 
-- **Contracts**: Solidity (Foundry)
-- **Frontend**: TypeScript, React, Vite, Tailwind CSS, viem
-- **Wallet**: `@initia/react-wallet-widget`
+- **Contracts**: Solidity 0.8.24 (Foundry), OpenZeppelin Ownable2Step
+- **Frontend**: TypeScript, React 19, Vite, Tailwind CSS, viem
+- **Wallet**: `@initia/interwovenkit-react` (InterwovenKit) with built-in auto-signing
 - **Chain**: Initia minievm minitia
+- **Tests**: 124 passing (Foundry)
 
 ## Project Structure
 
@@ -100,8 +101,10 @@ ghostpay/
 ### Start the Chain
 
 ```bash
-minitiad start --home /tmp/ghostpay-minitia
+minitiad start --home ~/.minitia
 ```
+
+> **Note:** If using weave, the home directory may be at `~/.weave/data/minievm@v1.2.15/` instead.
 
 ### Deploy Contracts
 
@@ -114,15 +117,25 @@ export ORACLE_PAIR_ID="INIT/USD"
 
 forge script script/Deploy.s.sol:DeployAll \
   --rpc-url http://localhost:8545 \
-  --broadcast --with-gas-price 0
+  --broadcast --with-gas-price 0 --skip-simulation
 ```
+
+### Seed Demo Data
+
+Pre-seeds a demo stream for testing the UI:
+
+```bash
+bash scripts/seed-demo.sh
+```
+
+This creates a 2 MIN stream over 10 minutes, funds the StreamSender contract, and sends the first tick.
 
 ### Start Frontend
 
 ```bash
 cd frontend
 cp .env.example .env  # Update with your contract addresses
-npm install
+npm install --legacy-peer-deps
 npm run dev
 ```
 

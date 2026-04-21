@@ -2,9 +2,17 @@
 // DEV-008: createStream signature updated (senderCosmos, amount params)
 // DEV-009: StreamSender sends tokens directly to StreamReceiver
 
-export const STREAM_SENDER_ADDRESS = import.meta.env.VITE_STREAM_SENDER_ADDRESS || '0x0000000000000000000000000000000000000000'
-export const PAYMENT_REGISTRY_ADDRESS = import.meta.env.VITE_PAYMENT_REGISTRY_ADDRESS || '0x0000000000000000000000000000000000000000'
-export const STREAM_RECEIVER_ADDRESS = import.meta.env.VITE_STREAM_RECEIVER_ADDRESS || '0x0000000000000000000000000000000000000000'
+const requireAddress = (name: string): string => {
+  const addr = import.meta.env[name]
+  if (!addr) {
+    throw new Error(`Missing required env variable: ${name}. Check your .env file.`)
+  }
+  return addr
+}
+
+export const STREAM_SENDER_ADDRESS = requireAddress('VITE_STREAM_SENDER_ADDRESS')
+export const PAYMENT_REGISTRY_ADDRESS = requireAddress('VITE_PAYMENT_REGISTRY_ADDRESS')
+export const STREAM_RECEIVER_ADDRESS = requireAddress('VITE_STREAM_RECEIVER_ADDRESS')
 
 export const STREAM_SENDER_ABI = [
   {
@@ -124,7 +132,6 @@ export const STREAM_RECEIVER_ABI = [
           { name: 'sender', type: 'string' },
           { name: 'totalReceived', type: 'uint256' },
           { name: 'lastReceiveTime', type: 'uint256' },
-          { name: 'active', type: 'bool' },
         ],
       },
     ],
@@ -162,7 +169,6 @@ export const PAYMENT_REGISTRY_ABI = [
           { name: 'streamId', type: 'bytes32' },
           { name: 'sender', type: 'string' },
           { name: 'receiver', type: 'string' },
-          { name: 'sourceChannel', type: 'string' },
           { name: 'destChannel', type: 'string' },
           { name: 'totalAmount', type: 'uint256' },
           { name: 'amountSent', type: 'uint256' },

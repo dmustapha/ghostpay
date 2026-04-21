@@ -26,10 +26,10 @@ contract KnownRisksTest is Test {
         receiverContract = address(receiver);
 
         // Deploy registry with oracle at address(0) to simulate inactive oracle
-        registry = new PaymentRegistry("umin", address(0), "ETH/USD", receiverContract);
+        registry = new PaymentRegistry("umin", address(0), "ETH/USD", receiverContract, false);
 
         // Deploy sender
-        sender = new StreamSender("umin", address(registry));
+        sender = new StreamSender("umin", address(registry), false);
         senderAddr = address(sender);
 
         // Wire access control
@@ -66,7 +66,7 @@ contract KnownRisksTest is Test {
         // Deploy a separate receiver + registry with a mock oracle that reverts
         address fakeOracle = makeAddr("fakeOracle");
         StreamReceiver recv2 = new StreamReceiver("umin");
-        PaymentRegistry reg2 = new PaymentRegistry("umin", fakeOracle, "ETH/USD", address(recv2));
+        PaymentRegistry reg2 = new PaymentRegistry("umin", fakeOracle, "ETH/USD", address(recv2), false);
         reg2.setStreamSender(senderAddr);
         recv2.setPaymentRegistry(address(reg2));
 
@@ -183,8 +183,8 @@ contract KnownRisksTest is Test {
 
         vm.startPrank(altDeployer);
         StreamReceiver recv2 = new StreamReceiver("umin");
-        PaymentRegistry reg2 = new PaymentRegistry("umin", address(0), "ETH/USD", address(recv2));
-        StreamSender send2 = new StreamSender("umin", address(reg2));
+        PaymentRegistry reg2 = new PaymentRegistry("umin", address(0), "ETH/USD", address(recv2), false);
+        StreamSender send2 = new StreamSender("umin", address(reg2), false);
 
         reg2.setStreamSender(address(send2));
         recv2.setPaymentRegistry(address(reg2));
@@ -218,6 +218,6 @@ contract KnownRisksTest is Test {
         bytes32 streamId = keccak256("unauth");
         vm.prank(alice); // alice is NOT paymentRegistry
         vm.expectRevert("Only PaymentRegistry");
-        receiver.onReceivePayment(streamId, "init1r...", 1 ether);
+        receiver.onReceivePayment(streamId, "init1sender...", "init1r...", 1 ether);
     }
 }

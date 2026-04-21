@@ -40,6 +40,9 @@ function parseOracleResponse(data: any): OraclePrice {
 export function formatUsdValue(amountWei: bigint, price: OraclePrice | null | undefined, tokenDecimals = 6): string {
   if (!price || price.price === 0n) return '$?.??'
   const usdRaw = (amountWei * price.price) / (10n ** BigInt(price.decimal))
-  const usdFloat = Number(usdRaw) / 10 ** tokenDecimals
+  const divisor = BigInt(10 ** tokenDecimals)
+  const wholePart = usdRaw / divisor
+  const fracPart = usdRaw % divisor
+  const usdFloat = Number(wholePart) + Number(fracPart) / 10 ** tokenDecimals
   return `$${usdFloat.toFixed(2)}`
 }

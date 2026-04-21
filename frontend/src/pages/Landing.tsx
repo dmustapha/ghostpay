@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
+import { TICK_INTERVAL_MS } from '../config/chains'
 
 export function Landing() {
   return (
@@ -17,11 +18,13 @@ export function Landing() {
 
 function HeroSection() {
   const [counter, setCounter] = useState(0)
+  // Derive increment from protocol tick interval: simulate ~74.1 MIN per tick spread over 1s updates
+  const incrementPerSecond = 74.1 / (TICK_INTERVAL_MS / 1000)
 
   useEffect(() => {
-    const id = setInterval(() => setCounter(v => v + 2.47), 1000)
+    const id = setInterval(() => setCounter(v => v + incrementPerSecond), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [incrementPerSecond])
 
   return (
     <section className="max-w-[1000px] mx-auto px-5 pt-20 pb-10">
@@ -107,6 +110,9 @@ function FlowParticles() {
 function StatsBar() {
   return (
     <section className="max-w-[800px] mx-auto px-5 pb-16">
+      <div className="text-center mb-3">
+        <span className="text-xs text-gray-400 uppercase tracking-wider">Demo Preview</span>
+      </div>
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <StatCard value={14328} label="MIN streamed" />
         <StatCard value={52} label="ticks sent" />

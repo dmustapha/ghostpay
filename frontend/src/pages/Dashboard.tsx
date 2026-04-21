@@ -1,34 +1,38 @@
 // DEV-007: All contracts on Settlement
 import { Link } from 'react-router-dom'
-import { encodeFunctionData } from 'viem'
 import { useSentStreams, useClaimableBalance } from '../hooks/useStreams'
 import { useOraclePrice } from '../hooks/useOracle'
 import { useStreamTick } from '../hooks/useStreamTick'
+import { useClaim } from '../hooks/useClaim'
 import { StreamCard } from '../components/StreamCard'
-import { STREAM_RECEIVER_ABI, STREAM_RECEIVER_ADDRESS } from '../config/contracts'
 import { SETTLEMENT } from '../config/chains'
+import type { CosmosMsg } from '../types'
+import { formatAmount } from '../utils/format'
 
 interface DashboardProps {
   address: string | undefined
   wallet: { address: string; submitTxBlock: (chainId: string, msgs: unknown[]) => Promise<void> } | null
 }
 
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 
 export function Dashboard({ address, wallet }: DashboardProps) {
   const { data: sentStreams, isLoading: loadingSent } = useSentStreams(address)
   const { data: claimable } = useClaimableBalance(address)
   const { data: oraclePrice } = useOraclePrice()
-  const [isClaiming, setIsClaiming] = useState(false)
-  const [claimError, setClaimError] = useState<string | null>(null)
 
   const walletRef = useRef(wallet)
   walletRef.current = wallet
 
-  const stableSubmitTx = useCallback(async (params: { msgs: any[] }) => {
+  const stableSubmitTx = useCallback(async (params: { msgs: CosmosMsg[] }) => {
     if (!walletRef.current) return
     await walletRef.current.submitTxBlock(SETTLEMENT.chainId, params.msgs)
   }, [])
+
+  const { claim, isClaiming, claimError } = useClaim({
+    callerAddress: address,
+    submitTxBlock: stableSubmitTx,
+  })
 
   const activeStream = sentStreams?.find((s) => s.active)
   const { tickCount, isSending: isAutoTicking } = useStreamTick({
@@ -64,7 +68,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
             <div>
               <p className="text-xs font-medium text-emerald-400 uppercase tracking-wider mb-1">Claimable Balance</p>
               <p className="text-3xl font-bold font-mono tabular-nums text-white">
-                {(Number(claimable) / 1e6).toFixed(4)}
+                {formatAmount(claimable)}
                 <span className="text-lg text-gray-400 ml-2">MIN</span>
               </p>
             </div>
@@ -73,31 +77,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
                 className="btn-primary px-5 py-2.5 text-sm"
                 style={{ background: isClaiming ? undefined : 'linear-gradient(to right, #059669, #10b981)' }}
                 disabled={isClaiming}
-                onClick={async () => {
-                  if (!wallet || isClaiming) return
-                  setIsClaiming(true)
-                  setClaimError(null)
-                  try {
-                    await wallet.submitTxBlock(SETTLEMENT.chainId, [{
-                      typeUrl: '/minievm.evm.v1.MsgCall',
-                      value: {
-                        sender: wallet.address,
-                        contract_addr: STREAM_RECEIVER_ADDRESS,
-                        input: encodeFunctionData({
-                          abi: STREAM_RECEIVER_ABI,
-                          functionName: 'claim',
-                          args: [],
-                        }),
-                        value: '0',
-                      },
-                    }])
-                  } catch (err) {
-                    console.error('Claim failed:', err)
-                    setClaimError(err instanceof Error ? err.message : 'Claim failed')
-                  } finally {
-                    setIsClaiming(false)
-                  }
-                }}
+                onClick={claim}
               >
                 {isClaiming ? 'Claiming...' : 'Claim Funds'}
               </button>

@@ -1,26 +1,28 @@
 // DEV-007: All contracts on Settlement — demo still shows split-screen for narrative
-import { useState } from 'react'
-import { encodeFunctionData } from 'viem'
 import { useSentStreams, useClaimableBalance } from '../hooks/useStreams'
 import { useOraclePrice, formatUsdValue } from '../hooks/useOracle'
+import { useClaim } from '../hooks/useClaim'
 import { BridgeVisualization } from '../components/BridgeVisualization'
 import { StreamCard } from '../components/StreamCard'
-import { STREAM_RECEIVER_ABI, STREAM_RECEIVER_ADDRESS } from '../config/contracts'
+import type { CosmosMsg } from '../types'
+import { formatAmountFull } from '../utils/format'
 
 interface DemoViewProps {
   senderAddress: string | undefined
   receiverAddress: string | undefined
   lastTickTime: number | null
   callerAddress: string | undefined
-  submitTxBlock: (params: { msgs: any[] }) => Promise<any>
+  submitTxBlock: (params: { msgs: CosmosMsg[] }) => Promise<unknown>
 }
 
 export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerAddress, submitTxBlock }: DemoViewProps) {
   const { data: sentStreams } = useSentStreams(senderAddress)
   const { data: claimable } = useClaimableBalance(receiverAddress)
   const { data: oraclePrice } = useOraclePrice()
-  const [isClaiming, setIsClaiming] = useState(false)
-  const [claimError, setClaimError] = useState<string | null>(null)
+  const { claim, isClaiming, claimError } = useClaim({
+    callerAddress,
+    submitTxBlock,
+  })
 
   const activeStreams = sentStreams?.filter((s) => s.active) || []
 
@@ -95,7 +97,7 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
             }`}>
               <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Claimable Balance</p>
               <p className="text-4xl font-bold font-mono tabular-nums text-emerald-400">
-                {claimable ? (Number(claimable) / 1e6).toFixed(6) : '0.000000'}
+                {claimable ? formatAmountFull(claimable) : '0.000000'}
               </p>
               <p className="text-sm text-gray-500 mt-1">
                 MIN
@@ -111,33 +113,7 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime, callerA
                 className="btn-primary w-full py-3 text-sm"
                 style={{ background: isClaiming ? undefined : 'linear-gradient(to right, #059669, #10b981)' }}
                 disabled={isClaiming}
-                onClick={async () => {
-                  if (isClaiming) return
-                  setIsClaiming(true)
-                  setClaimError(null)
-                  try {
-                    await submitTxBlock({
-                      msgs: [{
-                        typeUrl: '/minievm.evm.v1.MsgCall',
-                        value: {
-                          sender: callerAddress,
-                          contract_addr: STREAM_RECEIVER_ADDRESS,
-                          input: encodeFunctionData({
-                            abi: STREAM_RECEIVER_ABI,
-                            functionName: 'claim',
-                            args: [],
-                          }),
-                          value: '0',
-                        },
-                      }],
-                    })
-                  } catch (err) {
-                    console.error('Claim failed:', err)
-                    setClaimError(err instanceof Error ? err.message : 'Claim failed')
-                  } finally {
-                    setIsClaiming(false)
-                  }
-                }}
+                onClick={claim}
               >
                 {isClaiming ? 'Claiming...' : 'Claim Funds'}
               </button>

@@ -10,6 +10,18 @@ import {
 } from '../config/contracts'
 import type { StreamView } from '../types'
 
+const BATCH_SIZE = 5
+
+async function batchMap<T, R>(items: T[], fn: (item: T) => Promise<R>, concurrency: number): Promise<R[]> {
+  const results: R[] = []
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency)
+    const batchResults = await Promise.all(batch.map(fn))
+    results.push(...batchResults)
+  }
+  return results
+}
+
 const settlementClient = createPublicClient({
   chain: SETTLEMENT.viemChain,
   transport: http(SETTLEMENT.rpcUrl),
@@ -39,38 +51,37 @@ export function useSentStreams(senderAddress: string | undefined) {
         args: [evmAddr],
       }) as `0x${string}`[]
 
-      const streams = await Promise.all(
-        ids.map(async (id) => {
-          const info = await settlementClient.readContract({
-            address: STREAM_SENDER_ADDRESS as `0x${string}`,
-            abi: STREAM_SENDER_ABI,
-            functionName: 'getStreamInfo',
-            args: [id],
-          }) as {
-            streamId: `0x${string}`; sender: string; senderCosmos: string;
-            receiver: string; destChannel: string;
-            totalAmount: bigint; amountSent: bigint; ratePerTick: bigint;
-            startTime: bigint; endTime: bigint; active: boolean;
-          }
-          return {
-            streamId: id,
-            sender: info.sender,
-            senderCosmos: info.senderCosmos,
-            receiver: info.receiver,
-            destChannel: info.destChannel,
-            totalAmount: info.totalAmount,
-            amountSent: info.amountSent,
-            ratePerTick: info.ratePerTick,
-            startTime: Number(info.startTime),
-            endTime: Number(info.endTime),
-            active: info.active,
-          } as StreamView
-        })
-      )
+      const streams = await batchMap(ids, async (id) => {
+        const info = await settlementClient.readContract({
+          address: STREAM_SENDER_ADDRESS as `0x${string}`,
+          abi: STREAM_SENDER_ABI,
+          functionName: 'getStreamInfo',
+          args: [id],
+        }) as {
+          streamId: `0x${string}`; sender: string; senderCosmos: string;
+          receiver: string; destChannel: string;
+          totalAmount: bigint; amountSent: bigint; ratePerTick: bigint;
+          startTime: bigint; endTime: bigint; active: boolean;
+        }
+        return {
+          streamId: id,
+          sender: info.sender,
+          senderCosmos: info.senderCosmos,
+          receiver: info.receiver,
+          destChannel: info.destChannel,
+          totalAmount: info.totalAmount,
+          amountSent: info.amountSent,
+          ratePerTick: info.ratePerTick,
+          startTime: Number(info.startTime),
+          endTime: Number(info.endTime),
+          active: info.active,
+        } as StreamView
+      }, BATCH_SIZE)
       return streams
     },
     enabled: !!senderAddress,
     refetchInterval: POLL_INTERVAL_MS,
+    staleTime: 10_000,
   })
 }
 

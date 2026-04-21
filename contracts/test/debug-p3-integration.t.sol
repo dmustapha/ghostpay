@@ -24,8 +24,8 @@ abstract contract IntegrationBase is Test {
 
     function setUp() public virtual {
         receiver = new StreamReceiver("uinit");
-        registry = new PaymentRegistry("uinit", address(0), "INIT/USD", address(receiver));
-        sender = new StreamSender("uinit", address(registry));
+        registry = new PaymentRegistry("uinit", address(0), "INIT/USD", address(receiver), false);
+        sender = new StreamSender("uinit", address(registry), false);
 
         registry.setStreamSender(address(sender));
         receiver.setPaymentRegistry(address(registry));
@@ -138,7 +138,7 @@ contract P3_RegistryToReceiver is IntegrationBase {
     function test_receiverRejectsNonRegistry() public {
         vm.prank(alice);
         vm.expectRevert("Only PaymentRegistry");
-        receiver.onReceivePayment(keccak256("fake"), "init1bob...", 1 ether);
+        receiver.onReceivePayment(keccak256("fake"), "init1sender...", "init1bob...", 1 ether);
     }
 }
 
@@ -159,14 +159,14 @@ contract P3_CancelFlow is IntegrationBase {
         assertEq(s.amountSent, 1 ether);
     }
 
-    // After fix: Cancel on never-registered stream now reverts because
-    // PaymentRegistry.cancelStream requires startTime != 0 (stream must be registered).
-    function test_cancelStream_noTicksSent_reverts() public {
+    // H-2: Cancel before any ticks skips registry.cancelStream call (no revert)
+    function test_cancelStream_noTicksSent_succeeds() public {
         bytes32 streamId = _createDefaultStream();
         vm.prank(alice);
-        // Registry revert propagates up through StreamSender.cancelStream
-        vm.expectRevert("Stream not registered");
         sender.cancelStream(streamId);
+        // Should succeed — H-2 skips registry call when tickCount == 0
+        StreamSender.StreamInfo memory info = sender.getStreamInfo(streamId);
+        assertFalse(info.active);
     }
 
     function test_cancelStream_revertNotOwner() public {

@@ -15,7 +15,8 @@ contract DeployStreamSender is Script {
 
         vm.startBroadcast();
         // DEV-007: StreamSender now deploys on same chain as PaymentRegistry (Settlement)
-        StreamSender sender = new StreamSender(denom, paymentRegistry);
+        bool ibcMode = vm.envOr("IBC_MODE", false);
+        StreamSender sender = new StreamSender(denom, paymentRegistry, ibcMode);
         vm.stopBroadcast();
 
         console.log("StreamSender deployed at:", address(sender));
@@ -30,7 +31,8 @@ contract DeployPaymentRegistry is Script {
         address streamReceiverAddress = vm.envAddress("STREAM_RECEIVER_ADDRESS");
 
         vm.startBroadcast();
-        PaymentRegistry registry = new PaymentRegistry(denom, oracleAddress, oraclePairId, streamReceiverAddress);
+        bool ibcMode = vm.envOr("IBC_MODE", false);
+        PaymentRegistry registry = new PaymentRegistry(denom, oracleAddress, oraclePairId, streamReceiverAddress, ibcMode);
         vm.stopBroadcast();
 
         console.log("PaymentRegistry deployed at:", address(registry));
@@ -61,8 +63,9 @@ contract DeployAll is Script {
 
         // Deploy in dependency order: Receiver → Registry(receiver) → Sender(registry)
         StreamReceiver receiver = new StreamReceiver(denom);
-        PaymentRegistry registry = new PaymentRegistry(denom, oracleAddress, oraclePairId, address(receiver));
-        StreamSender sender = new StreamSender(denom, address(registry));
+        bool ibcMode = vm.envOr("IBC_MODE", false);
+        PaymentRegistry registry = new PaymentRegistry(denom, oracleAddress, oraclePairId, address(receiver), ibcMode);
+        StreamSender sender = new StreamSender(denom, address(registry), ibcMode);
 
         // Wire access control post-deploy
         receiver.setPaymentRegistry(address(registry));

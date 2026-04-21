@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children, ghostWalletActive }: { children: React.ReactNode; ghostWalletActive?: boolean }) {
   const { pathname } = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -21,6 +21,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <NavLink to="/create" active={pathname === '/create'}>New Stream</NavLink>
             <NavLink to="/demo" active={pathname === '/demo'}>Live Demo</NavLink>
           </div>
+
+          {ghostWalletActive && (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ghost-950/40 border border-ghost-700/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-ghost-400 animate-pulse" />
+              <span className="text-[10px] text-ghost-400 uppercase tracking-wider">Ghost</span>
+            </div>
+          )}
 
           {/* Mobile hamburger */}
           <button

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { TICK_INTERVAL_MS } from '../config/chains'
+import { formatAmountFull } from '../utils/format'
 
 interface StreamCounterProps {
   current: bigint
@@ -23,7 +25,7 @@ export function StreamCounter({ current, rate, active, totalAmount }: StreamCoun
 
     const interval = setInterval(() => {
       const elapsedMs = Date.now() - startTimeRef.current
-      const increment = (rate * BigInt(elapsedMs)) / 30_000n
+      const increment = (rate * BigInt(elapsedMs)) / BigInt(TICK_INTERVAL_MS)
       let value = baseValueRef.current + increment
       if (totalAmount !== undefined && value > totalAmount) {
         value = totalAmount
@@ -34,7 +36,7 @@ export function StreamCounter({ current, rate, active, totalAmount }: StreamCoun
     return () => clearInterval(interval)
   }, [active, rate, totalAmount])
 
-  const formatted = (Number(displayValue) / 1e6).toFixed(6)
+  const formatted = formatAmountFull(displayValue)
 
   return (
     <span className="text-white font-mono tabular-nums font-medium">

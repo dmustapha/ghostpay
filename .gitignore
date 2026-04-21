@@ -21,11 +21,19 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Pipeline state (internal)
-.build-state.json
-.forge-state.json
-.conductor-state.json
-.debug-state.json
+# Pipeline state
+*.state.json
+
+# Pipeline artifacts
+debug-results/
+design-variations/
+warroom/
+screenshots/
+pipeline-log.md
+PULSE.md
+CRITIQUE-REPORT.md
+STRESS-TEST-PLAN.md
+STRESS-TEST-REPORT.md
 
 # Frontend
 frontend/node_modules/
@@ -34,3 +42,5 @@ frontend/.env
 
 # Docs context (internal)
 docs/context/
+.vercel
+.env*.local
