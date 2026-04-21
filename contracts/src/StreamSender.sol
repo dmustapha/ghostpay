@@ -8,7 +8,12 @@ pragma solidity ^0.8.24;
 // Users pre-fund contract via cosmos bank send, then createStream with amount param.
 
 import {ICosmos} from "./interfaces/ICosmos.sol";
+import {HexUtils} from "./lib/HexUtils.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 interface IPaymentRegistry {
     function processPayment(
@@ -26,8 +31,9 @@ interface IPaymentRegistry {
     function cancelStream(bytes32 streamId) external;
 }
 
-contract StreamSender {
+contract StreamSender is Ownable2Step, ReentrancyGuard, Pausable {
     ICosmos constant COSMOS = ICosmos(0x00000000000000000000000000000000000000f1);
+    uint64 private constant COSMOS_GAS_LIMIT = 500_000;
 
     struct StreamInfo {
         bytes32 streamId;
@@ -46,6 +52,8 @@ contract StreamSender {
 
     string public denom;
     address public paymentRegistry;
+    bool public ibcMode; // false = DEV-007 single-chain, true = IBC cross-rollup
+    uint256 public ibcTimeoutSeconds = 300;
     uint256 private _nonce;
     uint256 public totalReserved; // total tokens reserved across all active streams
 
@@ -56,25 +64,49 @@ contract StreamSender {
     event StreamCreated(bytes32 indexed streamId, address indexed sender, string receiver, uint256 totalAmount, uint256 duration);
     event TickSent(bytes32 indexed streamId, uint256 amount, uint256 tickNumber);
     event StreamCancelled(bytes32 indexed streamId, uint256 refundAmount);
+    event IbcTimeoutUpdated(uint256 oldTimeout, uint256 newTimeout);
 
-    constructor(string memory _denom, address _paymentRegistry) {
+    constructor(string memory _denom, address _paymentRegistry, bool _ibcMode) Ownable(msg.sender) {
         denom = _denom;
         paymentRegistry = _paymentRegistry;
+        ibcMode = _ibcMode;
+    }
+
+    function setIbcTimeoutSeconds(uint256 _timeout) external onlyOwner {
+        require(_timeout >= 60, "Too short");
+        emit IbcTimeoutUpdated(ibcTimeoutSeconds, _timeout);
+        ibcTimeoutSeconds = _timeout;
+    }
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /// @notice Create a payment stream. Caller must pre-fund this contract via
     ///         cosmos bank send before calling. Amount is in base denom units.
+    /// @dev C-5: On-chain balance verification is not possible because ICosmos.query_cosmos
+    ///      returns protobuf-encoded responses that cannot be decoded in Solidity.
+    ///      Safety net: execute_cosmos in sendTick will revert if the contract is underfunded,
+    ///      preventing token sends that exceed the actual balance.
     function createStream(
-        string calldata senderCosmos,
+        string calldata, // senderCosmos — ignored, derived from msg.sender for security
         string calldata receiver,
         string calldata destChannel,
         uint256 amount,
         uint256 durationSeconds
-    ) external returns (bytes32) {
+    ) external whenNotPaused returns (bytes32) {
         require(amount > 0, "Amount must be positive");
         require(durationSeconds > 0, "Duration must be positive");
-        // Contract must have enough unreserved balance (checked via cosmos query would be ideal,
-        // but for simplicity we trust the user pre-funded and track reservations)
+        require(bytes(receiver).length > 0, "Empty receiver");
+        require(bytes(destChannel).length > 0, "Empty channel");
+        _validateSafeString(receiver);
+        _validateSafeString(destChannel);
+        // Derive senderCosmos from msg.sender to prevent refund address spoofing
+        string memory senderCosmos_ = COSMOS.to_cosmos_address(msg.sender);
 
         bytes32 streamId = keccak256(abi.encodePacked(msg.sender, _nonce++));
         uint256 tickInterval = 30; // 30 seconds per tick
@@ -86,7 +118,7 @@ contract StreamSender {
         streams[streamId] = StreamInfo({
             streamId: streamId,
             sender: msg.sender,
-            senderCosmos: senderCosmos,
+            senderCosmos: senderCosmos_,
             receiver: receiver,
             destChannel: destChannel,
             totalAmount: amount,
@@ -106,7 +138,7 @@ contract StreamSender {
 
     uint256 public constant MIN_TICK_INTERVAL = 15; // seconds
 
-    function sendTick(bytes32 streamId) external {
+    function sendTick(bytes32 streamId) external nonReentrant whenNotPaused {
         StreamInfo storage s = streams[streamId];
         require(msg.sender == s.sender, "Not stream owner");
         require(s.active, "Stream not active");
@@ -133,7 +165,7 @@ contract StreamSender {
         emit TickSent(streamId, tickAmount, tickNumber);
     }
 
-    function cancelStream(bytes32 streamId) external {
+    function cancelStream(bytes32 streamId) external nonReentrant {
         StreamInfo storage s = streams[streamId];
         require(s.sender == msg.sender, "Not stream owner");
         require(s.active, "Stream not active");
@@ -151,10 +183,13 @@ contract StreamSender {
                 '"to_address":"', s.senderCosmos, '",',
                 '"amount":[{"denom":"', denom, '","amount":"', Strings.toString(refund), '"}]}'
             ));
-            require(COSMOS.execute_cosmos(msgSend, 500000), "Cosmos refund failed");
+            require(COSMOS.execute_cosmos(msgSend, COSMOS_GAS_LIMIT), "Cosmos refund failed");
         }
 
-        IPaymentRegistry(paymentRegistry).cancelStream(streamId);
+        // H-2: Only call registry if stream was registered (ticks were sent)
+        if (s.tickCount > 0) {
+            IPaymentRegistry(paymentRegistry).cancelStream(streamId);
+        }
         emit StreamCancelled(streamId, refund);
     }
 
@@ -166,15 +201,82 @@ contract StreamSender {
         return senderStreams[sender];
     }
 
-    function _sendToRegistry(StreamInfo storage s, uint256 amount, uint256 tickNumber) internal {
-        // DEV-009: Cosmos execute_cosmos queues msgs, they execute AFTER EVM returns.
-        // So we can't chain: send-to-Registry → Registry-send-to-Receiver (2nd fails, no balance yet).
-        // Fix: StreamSender sends tokens directly to StreamReceiver, and calls
-        // PaymentRegistry for bookkeeping only (no token movement in Registry).
-        _sendTokensToReceiver(amount);
-        _notifyRegistry(s, amount, tickNumber);
+    function getSenderStreamsPaginated(address sender, uint256 offset, uint256 limit) external view returns (bytes32[] memory) {
+        bytes32[] storage ids = senderStreams[sender];
+        if (offset >= ids.length) return new bytes32[](0);
+        uint256 end = offset + limit > ids.length ? ids.length : offset + limit;
+        bytes32[] memory result = new bytes32[](end - offset);
+        for (uint256 i = offset; i < end; i++) {
+            result[i - offset] = ids[i];
+        }
+        return result;
     }
 
+    function _sendToRegistry(StreamInfo storage s, uint256 amount, uint256 tickNumber) internal {
+        if (ibcMode) {
+            // IBC cross-rollup: send tokens + hook memo via MsgTransfer to Settlement
+            _sendTokensViaIbc(s, amount, tickNumber);
+        } else {
+            // DEV-007/009: Single-chain mode — direct bank send + EVM call
+            _sendTokensToReceiver(amount);
+            _notifyRegistry(s, amount, tickNumber);
+        }
+    }
+
+    /// @notice IBC mode: send tokens to Settlement via MsgTransfer with EVM hook memo
+    /// @dev Hook memo triggers PaymentRegistry.processPayment on the destination chain
+    function _sendTokensViaIbc(StreamInfo storage s, uint256 amount, uint256 tickNumber) internal {
+        // Copy storage to memory to avoid stack depth issues with via_ir
+        StreamInfo memory m = s;
+        string memory contractCosmos = COSMOS.to_cosmos_address(address(this));
+        bytes memory calldata_ = _encodeProcessPayment(m, amount, tickNumber);
+        string memory memo = _buildIbcMemo(
+            HexUtils.toHexString(paymentRegistry),
+            HexUtils.toHexString(calldata_)
+        );
+        require(COSMOS.execute_cosmos(
+            _buildMsgTransfer(m.destChannel, Strings.toString(amount), contractCosmos, memo),
+            COSMOS_GAS_LIMIT
+        ), "IBC transfer failed");
+    }
+
+    function _encodeProcessPayment(StreamInfo memory m, uint256 amount, uint256 tickNumber) internal pure returns (bytes memory) {
+        return abi.encodeCall(
+            IPaymentRegistry.processPayment,
+            (m.streamId, m.senderCosmos, m.receiver, m.destChannel, m.totalAmount, m.endTime, amount, tickNumber, m.ratePerTick)
+        );
+    }
+
+    function _buildMsgTransfer(
+        string memory channel, string memory amountStr,
+        string memory senderAddr, string memory memo
+    ) internal view returns (string memory) {
+        string memory part1 = string(abi.encodePacked(
+            '{"@type":"/ibc.applications.transfer.v1.MsgTransfer",',
+            '"source_port":"transfer",',
+            '"source_channel":"', channel, '",',
+            '"token":{"denom":"', denom, '","amount":"', amountStr, '"},'
+        ));
+        return string(abi.encodePacked(
+            part1,
+            '"sender":"', senderAddr, '",',
+            '"receiver":"', senderAddr, '",',
+            '"timeout_timestamp":"', Strings.toString((block.timestamp + ibcTimeoutSeconds) * 1_000_000_000), '",',
+            '"memo":"', memo, '"}'
+        ));
+    }
+
+    function _buildIbcMemo(string memory contractHex, string memory calldataHex) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '{\\"evm\\":{\\"async_callback\\":{\\"id\\":0,\\"contract_addr\\":\\"',
+            contractHex,
+            '\\",\\"input\\":\\"0x',
+            calldataHex,
+            '\\"}}}'
+        ));
+    }
+
+    /// @notice DEV-007: Direct bank send to StreamReceiver (single-chain mode)
     function _sendTokensToReceiver(uint256 amount) internal {
         string memory contractCosmos = COSMOS.to_cosmos_address(address(this));
         string memory receiverCosmos = COSMOS.to_cosmos_address(IPaymentRegistry(paymentRegistry).streamReceiverAddress());
@@ -186,12 +288,10 @@ contract StreamSender {
             '"amount":[{"denom":"', denom, '","amount":"', Strings.toString(amount), '"}]}'
         ));
 
-        // DEV-003: execute_cosmos requires (string, uint64) on minievm v1.2.15
-        require(COSMOS.execute_cosmos(msgSend, 500000), "Cosmos bank send failed");
+        require(COSMOS.execute_cosmos(msgSend, COSMOS_GAS_LIMIT), "Cosmos bank send failed");
     }
 
     function _notifyRegistry(StreamInfo storage s, uint256 amount, uint256 tickNumber) internal {
-        // Split into two-phase call to avoid stack-too-deep with 9 params
         address reg = paymentRegistry;
         bytes memory payload = abi.encodeCall(
             IPaymentRegistry.processPayment,
@@ -199,7 +299,6 @@ contract StreamSender {
         );
         (bool ok, bytes memory returnData) = reg.call(payload);
         if (!ok) {
-            // Bubble up the registry's revert reason if available
             if (returnData.length > 0) {
                 assembly { revert(add(returnData, 32), mload(returnData)) }
             }
@@ -207,5 +306,12 @@ contract StreamSender {
         }
     }
 
-    receive() external payable {}
+    /// @dev Validates that a string does not contain JSON-unsafe characters
+    function _validateSafeString(string calldata s) private pure {
+        bytes calldata b = bytes(s);
+        for (uint256 i = 0; i < b.length; i++) {
+            bytes1 c = b[i];
+            require(c != '"' && c != '\\' && c != '{' && c != '}', "Unsafe string character");
+        }
+    }
 }

@@ -2,6 +2,8 @@ import type { StreamView } from '../types'
 import { StreamCounter } from './StreamCounter'
 import { formatUsdValue } from '../hooks/useOracle'
 import type { OraclePrice } from '../types'
+import { FEATURES } from '../config/feature-flags'
+import { formatAmount } from '../utils/format'
 
 interface StreamCardProps {
   stream: StreamView
@@ -20,9 +22,16 @@ export function StreamCard({ stream, type, oraclePrice }: StreamCardProps) {
   return (
     <div className={`card-hover p-5 ${stream.active ? 'glow-ghost' : ''}`}>
       <div className="flex items-center justify-between mb-4">
-        <span className={stream.active ? 'badge-active' : 'badge-ended'}>
-          {stream.active ? 'Streaming' : 'Ended'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={stream.active ? 'badge-active' : 'badge-ended'}>
+            {stream.active ? 'Streaming' : 'Ended'}
+          </span>
+          {FEATURES.IBC_MODE && stream.destChannel && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-950/40 text-blue-400 border border-blue-800/30">
+              IBC
+            </span>
+          )}
+        </div>
         <span className="text-xs text-gray-500 font-mono">{timeLeft}</span>
       </div>
 
@@ -31,8 +40,8 @@ export function StreamCard({ stream, type, oraclePrice }: StreamCardProps) {
           <span className="text-gray-500">{type === 'sent' ? 'To' : 'From'}</span>
           <span className="text-gray-300 font-mono text-xs bg-gray-800/60 px-2 py-0.5 rounded-md">
             {type === 'sent'
-              ? stream.receiver.slice(0, 14) + '...'
-              : stream.sender?.slice(0, 14) + '...'}
+              ? (stream.receiver?.slice(0, 14) ?? 'Unknown') + '...'
+              : (stream.sender?.slice(0, 14) ?? 'Unknown') + '...'}
           </span>
         </div>
 
@@ -72,10 +81,6 @@ export function StreamCard({ stream, type, oraclePrice }: StreamCardProps) {
       </div>
     </div>
   )
-}
-
-function formatAmount(microAmount: bigint): string {
-  return (Number(microAmount) / 1e6).toFixed(4)
 }
 
 function formatDuration(seconds: number): string {

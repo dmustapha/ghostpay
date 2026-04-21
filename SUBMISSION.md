@@ -28,7 +28,7 @@ Receiver → StreamReceiver.claim() → withdraw funds
 | **ICosmos Precompile** | Contracts call `execute_cosmos` at `0xf1` for cosmos bank sends — this is how tokens move between contracts | Yes |
 | **Connect Oracle** | PaymentRegistry queries INIT/USD price on every tick for real-time USD conversion | Yes |
 | **minievm** | All 3 Solidity contracts leverage EVM↔Cosmos interop; wouldn't work on vanilla EVM | Yes |
-| **Wallet Widget** | `@initia/react-wallet-widget` for seamless Initia wallet connection and tx signing | Yes |
+| **InterwovenKit** | `@initia/interwovenkit-react` for seamless Initia wallet connection and tx signing | Yes |
 
 Remove any one of these and the product breaks. This is Initia-native infrastructure, not a port.
 

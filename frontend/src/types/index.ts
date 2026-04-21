@@ -22,7 +22,6 @@ export interface RegistryStream {
   streamId: string;
   sender: string;
   receiver: string;
-  sourceChannel: string;
   destChannel: string;
   totalAmount: bigint;
   amountSent: bigint;
@@ -39,7 +38,6 @@ export interface IncomingStream {
   sender: string;
   totalReceived: bigint;
   lastReceiveTime: number;
-  active: boolean;
 }
 
 export interface OraclePrice {
@@ -54,6 +52,12 @@ export interface ChainConfig {
   rpcUrl: string;
   restUrl: string;
   viemChain: import('viem').Chain;
+}
+
+/** Cosmos SDK message for wallet submission */
+export interface CosmosMsg {
+  typeUrl: string
+  value: Record<string, unknown>
 }
 
 // DEV-008: createStream takes explicit amount + senderCosmos

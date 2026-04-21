@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-interface ICosmos {
-    function execute_cosmos(string memory msg, uint64 execGas) external returns (bool);
-    function to_cosmos_address(address addr) external view returns (string memory);
-}
+import {ICosmos} from "../interfaces/ICosmos.sol";
 
 contract HookToIbcTest {
     ICosmos constant COSMOS = ICosmos(0x00000000000000000000000000000000000000f1);

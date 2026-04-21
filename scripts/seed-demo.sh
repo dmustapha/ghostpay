@@ -17,7 +17,7 @@ LOG_FILE="${PROJECT_DIR}/seed-demo.log"
 MINITIAD="${MINITIAD_PATH:-${HOME}/.weave/data/minievm@v1.2.15/minitiad}"
 HOME_DIR="${MINITIA_HOME:-${HOME}/.minitia}"
 KEYRING_BACKEND="test"
-CHAIN_ID="${SETTLEMENT_CHAIN_ID:-ghostpay-settlement-1}"
+CHAIN_ID="${SETTLEMENT_CHAIN_ID:-ghostpay-1}"
 
 # NOTE: minitiad keyring uses coin_type 118 derivation, which gives different address
 # than coin_type 60 (EVM). The keyring's "deployer" key is the one we can sign with.

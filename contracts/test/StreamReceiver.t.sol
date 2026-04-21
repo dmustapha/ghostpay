@@ -36,7 +36,7 @@ contract StreamReceiverTest is Test {
     function test_onReceivePayment_creditsBalance() public {
         bytes32 streamId = keccak256("stream1");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(streamId, "init1testrecv...", 5 ether);
+        receiver.onReceivePayment(streamId, "init1sender...", "init1testrecv...", 5 ether);
 
         assertEq(receiver.getClaimable(mockEvmAddr), 5 ether);
     }
@@ -44,7 +44,7 @@ contract StreamReceiverTest is Test {
     function test_claim() public {
         bytes32 streamId = keccak256("stream1");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(streamId, "init1testrecv...", 5 ether);
+        receiver.onReceivePayment(streamId, "init1sender...", "init1testrecv...", 5 ether);
 
         vm.prank(mockEvmAddr);
         receiver.claim();
@@ -61,9 +61,9 @@ contract StreamReceiverTest is Test {
     function test_multiplePaymentsAccumulate() public {
         bytes32 streamId = keccak256("stream1");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(streamId, "init1testrecv...", 2 ether);
+        receiver.onReceivePayment(streamId, "init1sender...", "init1testrecv...", 2 ether);
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(streamId, "init1testrecv...", 3 ether);
+        receiver.onReceivePayment(streamId, "init1sender...", "init1testrecv...", 3 ether);
 
         assertEq(receiver.getClaimable(mockEvmAddr), 5 ether);
 

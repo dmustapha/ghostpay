@@ -2,8 +2,10 @@
 
 **Version:** V1
 **Date:** 2026-04-07
-**Stack:** Solidity (Foundry) + TypeScript (Vite/React) + InterwovenKit + TanStack Query
+**Stack:** Solidity (Foundry) + TypeScript (Vite/React) + @initia/interwovenkit-react + TanStack Query
 **THIS IS THE SINGLE SOURCE OF TRUTH.** Copy code from this document exactly.
+
+> **DEV-007:** All three contracts (StreamSender, PaymentRegistry, StreamReceiver) are deployed on a single Settlement rollup. The original 3-chain architecture was simplified due to Initia's hub-and-spoke IBC topology.
 
 ---
 
@@ -12,46 +14,32 @@
 ### Purpose
 Cross-rollup payment streaming infrastructure on Initia — turns lump-sum payments into continuous money streams that flow automatically between rollups via IBC.
 
-### System Diagram
+### System Diagram (DEV-007: Single Settlement Chain)
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                            INITIA L1 (Router)                                │
-│                     rapid-relayer A ←──→ rapid-relayer B                      │
-└───────────┬──────────────────────────────────────────────┬───────────────────┘
-            │ IBC channel-A                                │ IBC channel-B
-            │ (transfer/channel-N)                         │ (transfer/channel-M)
-            ▼                                              ▼
-┌───────────────────────┐  ┌────────────────────────┐  ┌───────────────────────┐
-│    Rollup A (EVM)     │  │  Settlement Minitia    │  │    Rollup B (EVM)     │
-│                       │  │   (GhostPay Rollup)    │  │                       │
-│ ┌───────────────────┐ │  │                        │  │ ┌───────────────────┐ │
-│ │   StreamSender    │ │  │ ┌────────────────────┐ │  │ │  StreamReceiver   │ │
-│ │   - createStream  │─┼──┼→│  PaymentRegistry   │─┼──┼→│  - onReceive      │ │
-│ │   - sendTick      │ │  │ │  - processPayment  │ │  │ │  - claim          │ │
-│ │   - cancelStream  │ │  │ │  - registerStream  │ │  │ │  - getClaimable   │ │
-│ └───────────────────┘ │  │ │  - queryOracle     │ │  │ └───────────────────┘ │
-│         ▲             │  │ └────────┬───────────┘ │  │         ▲             │
-│         │ MsgCall     │  │          │             │  │         │ poll        │
-│ ┌───────────────────┐ │  │ ┌────────▼───────────┐ │  │ ┌───────────────────┐ │
-│ │   Ghost Wallet    │ │  │ │  IConnectOracle    │ │  │ │  Frontend (B)     │ │
-│ │  (authz+feegrant) │ │  │ │  (USD price feed)  │ │  │ │  (receiver view)  │ │
-│ └───────────────────┘ │  │ └────────────────────┘ │  │ └───────────────────┘ │
-│         ▲             │  │                        │  │                       │
-│         │ autoSign    │  │                        │  │                       │
-│ ┌───────────────────┐ │  │                        │  │                       │
-│ │  Frontend (A)     │ │  │                        │  │                       │
-│ │  (sender view)    │ │  │                        │  │                       │
-│ │  setInterval tick │ │  │                        │  │                       │
-│ └───────────────────┘ │  │                        │  │                       │
-└───────────────────────┘  └────────────────────────┘  └───────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│              Settlement Minitia — ghostpay-1 (minievm)           │
+│                                                                  │
+│  ┌───────────────┐  ┌──────────────────┐  ┌─────────────────┐   │
+│  │ StreamSender  │  │ PaymentRegistry  │  │ StreamReceiver  │   │
+│  │ - createStream│─→│ - processPayment │─→│ - onReceive     │   │
+│  │ - sendTick    │  │ - registerStream │  │ - claim         │   │
+│  │ - cancelStream│  │ - queryOracle    │  │ - getClaimable  │   │
+│  └───────┬───────┘  └────────┬─────────┘  └────────▲────────┘   │
+│          │                   │                      │ poll       │
+│  ┌───────▼───────┐  ┌───────▼──────────┐  ┌───────┴────────┐   │
+│  │ Ghost Wallet  │  │ IConnectOracle   │  │   Frontend     │   │
+│  │(authz+feegrant)│  │ (USD price feed) │  │ (sender+recv)  │   │
+│  └───────▲───────┘  └──────────────────┘  └───────┬────────┘   │
+│          │ autoSign                                │            │
+│          └────────────────────────────────────────-┘            │
+└──────────────────────────────────────────────────────────────────┘
 
-IBC Flow (per stream tick):
+Flow (per stream tick — all on same chain, no IBC hops):
   1. Frontend → Ghost Wallet: submitTxBlock(MsgCall → StreamSender.sendTick)
-  2. StreamSender → ICosmos(0xf1): execute_cosmos(MsgTransfer + hook memo)
-  3. Relayer A → Settlement: packet arrives, hook calls PaymentRegistry.processPayment
-  4. PaymentRegistry → ICosmos(0xf1): execute_cosmos(MsgTransfer + hook memo)
-  5. Relayer B → Rollup B: packet arrives, hook calls StreamReceiver.onReceivePayment
-  6. Frontend (B): polls StreamReceiver.getClaimable, animates counter
+  2. StreamSender calls PaymentRegistry.processPayment (direct EVM call)
+  3. PaymentRegistry queries oracle, records payment
+  4. PaymentRegistry calls StreamReceiver.onReceivePayment (direct EVM call)
+  5. Frontend polls StreamReceiver.getClaimable, animates counter
 ```
 
 ### Technology Stack
@@ -63,7 +51,7 @@ IBC Flow (per stream tick):
 | TypeScript | 5.x | Frontend application |
 | React | 18.x | UI framework |
 | Vite | 5.x | Build tool and dev server |
-| InterwovenKit | Latest | Wallet connection, auto-sign (ghost wallet), tx submission |
+| @initia/interwovenkit-react | Latest | Wallet connection, auto-sign (ghost wallet), tx submission |
 | TanStack Query | 5.x | Data fetching, caching, polling |
 | React Router | 6.x | Client-side routing |
 | Tailwind CSS | 3.x | Styling |
@@ -154,19 +142,19 @@ components/* ← pages/*
 | 2 | IConnectOracle Interface | Solidity Interface | contracts/src/interfaces/IConnectOracle.sol | Oracle price feed queries | None |
 | 3 | HexUtils Library | Solidity Library | contracts/src/lib/HexUtils.sol | bytes→hex string conversion for IBC hook memos | None |
 | 4 | StreamSender | Solidity Contract | contracts/src/StreamSender.sol | Deposit, stream creation, IBC tick sending | ICosmos, HexUtils, Strings |
-| 5 | PaymentRegistry | Solidity Contract | contracts/src/PaymentRegistry.sol | Stream state, oracle query, cross-rollup routing | ICosmos, IConnectOracle, HexUtils, Strings |
+| 5 | PaymentRegistry | Solidity Contract | contracts/src/PaymentRegistry.sol | Stream state, oracle query, payment routing (DEV-007: same chain) | ICosmos, IConnectOracle, HexUtils, Strings |
 | 6 | StreamReceiver | Solidity Contract | contracts/src/StreamReceiver.sol | Credit received funds, allow claims | None |
 | 7 | Deploy Scripts | Foundry Script | contracts/script/Deploy.s.sol | Deploy all 3 contracts to respective chains | All contracts |
-| 8 | Frontend | React SPA | frontend/src/ | Stream creation, visualization, wallet mgmt | InterwovenKit, viem, TanStack Query |
+| 8 | Frontend | React SPA | frontend/src/ | Stream creation, visualization, wallet mgmt | @initia/interwovenkit-react, viem, TanStack Query |
 | 9 | Seed Script | TypeScript | scripts/seed-demo.ts | Create demo state for recording | viem, contracts |
 
 ### Data Flow
 
-1. **Stream creation:** User connects via InterwovenKit → enables auto-sign (ghost wallet created with authz for MsgCall) → calls StreamSender.createStream() with native token deposit → stream ID generated, state stored on-chain, StreamCreated event emitted.
+1. **Stream creation:** User connects via @initia/interwovenkit-react → enables auto-sign (ghost wallet created with authz for MsgCall) → calls StreamSender.createStream() with native token deposit → stream ID generated, state stored on-chain, StreamCreated event emitted.
 
-2. **Stream tick:** Frontend setInterval fires every 30s → calls submitTxBlock(MsgCall → StreamSender.sendTick(streamId)) → ghost wallet signs without popup → StreamSender calculates tick amount, builds MsgTransfer JSON with EVM hook memo targeting PaymentRegistry → ICosmos.execute_cosmos sends IBC packet → relayer A delivers to Settlement Minitia → hook calls PaymentRegistry.processPayment → records payment, queries oracle for USD value → builds MsgTransfer JSON with EVM hook memo targeting StreamReceiver → ICosmos.execute_cosmos sends IBC packet → relayer B delivers to Rollup B → hook calls StreamReceiver.onReceivePayment → credits receiver balance.
+2. **Stream tick:** Frontend setInterval fires every 30s → calls submitTxBlock(MsgCall → StreamSender.sendTick(streamId)) → ghost wallet signs without popup → StreamSender calculates tick amount → calls PaymentRegistry.processPayment directly → records payment, queries oracle for USD value → calls StreamReceiver.onReceivePayment directly → credits receiver balance. (DEV-007: all on same chain, no IBC hops.)
 
-3. **Balance polling:** Frontend on Rollup B polls StreamReceiver.getClaimable(address) via viem public client every 5s → animates StreamCounter component.
+3. **Balance polling:** Frontend polls StreamReceiver.getClaimable(address) via viem public client every 5s → animates StreamCounter component.
 
 4. **Claiming:** Receiver calls StreamReceiver.claim() → native tokens transferred to receiver address.
 
@@ -389,7 +377,7 @@ library HexUtils {
 ## 7. StreamSender Contract
 
 ### Purpose
-Deployed on Rollup A. Accepts deposits, creates streams, and sends IBC micro-payments (ticks) to the Settlement Minitia via ICosmos precompile. Each tick includes an EVM IBC hook memo that triggers PaymentRegistry.processPayment on the settlement chain.
+Deployed on Settlement Minitia (ghostpay-1). Accepts deposits, creates streams, and sends micro-payments (ticks). Each tick calls PaymentRegistry.processPayment directly on the same chain (DEV-007).
 
 ### Dependencies
 - ICosmos (0xf1 precompile)
@@ -622,7 +610,7 @@ contract StreamSender {
 ## 8. PaymentRegistry Contract
 
 ### Purpose
-Deployed on Settlement Minitia. Central stream state management and cross-rollup routing. Receives IBC payments via EVM hook, records stream state, queries oracle for USD conversion, and forwards tokens to destination rollup via another IBC transfer with hook memo.
+Deployed on Settlement Minitia (ghostpay-1). Central stream state management and payment routing. Receives payments from StreamSender, records stream state, queries oracle for USD conversion, and forwards tokens to StreamReceiver (DEV-007: all on same chain, direct EVM calls).
 
 ### Dependencies
 - ICosmos (0xf1 precompile)
@@ -669,7 +657,7 @@ contract PaymentRegistry {
     string public denom;
     address public oracleAddress;
     string public oraclePairId;
-    address public streamReceiverAddress; // EVM address on Rollup B (for hook memo)
+    address public streamReceiverAddress; // EVM address on Settlement (DEV-007: same chain)
     address public owner;
 
     mapping(bytes32 => Stream) public streams;
@@ -871,7 +859,7 @@ contract PaymentRegistry {
 ## 9. StreamReceiver Contract
 
 ### Purpose
-Deployed on Rollup B. Receives IBC payments via EVM hook, credits funds to recipient addresses, and allows receivers to claim accumulated balances.
+Deployed on Settlement Minitia (ghostpay-1). Receives payments via direct EVM call from PaymentRegistry, credits funds to recipient addresses, and allows receivers to claim accumulated balances (DEV-007: same chain, no IBC).
 
 ### Dependencies
 None.
@@ -1072,25 +1060,11 @@ contract DeployStreamReceiver is Script {
 }
 ```
 
-### Deployment Commands
+### Deployment Commands (DEV-007: all on Settlement)
 ```bash
-# Step 1: Deploy StreamReceiver on Rollup B (no dependencies)
-forge script script/Deploy.s.sol:DeployStreamReceiver \
-  --rpc-url $ROLLUP_B_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast --via-ir --with-gas-price 0 --skip-simulation
-
-# Step 2: Deploy PaymentRegistry on Settlement Minitia (needs StreamReceiver address)
-STREAM_RECEIVER_ADDRESS=<from step 1> \
-forge script script/Deploy.s.sol:DeployPaymentRegistry \
+# All contracts deploy to the same Settlement Minitia (ghostpay-1)
+forge script script/Deploy.s.sol:DeployAll \
   --rpc-url $SETTLEMENT_RPC \
-  --private-key $DEPLOYER_PRIVATE_KEY \
-  --broadcast --via-ir --with-gas-price 0 --skip-simulation
-
-# Step 3: Deploy StreamSender on Rollup A (needs PaymentRegistry address)
-PAYMENT_REGISTRY_ADDRESS=<from step 2> \
-forge script script/Deploy.s.sol:DeployStreamSender \
-  --rpc-url $ROLLUP_A_RPC \
   --private-key $DEPLOYER_PRIVATE_KEY \
   --broadcast --via-ir --with-gas-price 0 --skip-simulation
 ```
@@ -1374,7 +1348,7 @@ rollup_b = "${ROLLUP_B_RPC}"
 ### Code
 
 #### File: frontend/package.json
-[ASSUMED] — Package versions based on latest available; InterwovenKit package name from docs
+[ASSUMED] — Package versions based on latest available; @initia/interwovenkit-react package name from docs
 ```json
 {
   "name": "ghostpay-frontend",
@@ -1525,10 +1499,10 @@ Chain configuration for all three rollups and contract addresses/ABIs for fronte
 ### Code
 
 #### File: frontend/src/config/chains.ts
-[ASSUMED] — Chain IDs and RPC URLs determined at deploy time; InterwovenKit chain config pattern assumed
+[ASSUMED] — Chain IDs and RPC URLs determined at deploy time; @initia/interwovenkit-react chain config pattern assumed
 ```typescript
 // File: frontend/src/config/chains.ts
-// CAUTION: ASSUMED PATTERN — InterwovenKit chain config shape may differ. Test empirically.
+// CAUTION: ASSUMED PATTERN — @initia/interwovenkit-react chain config shape may differ. Test empirically.
 
 import { defineChain } from 'viem'
 import type { ChainConfig } from '../types'
@@ -1537,28 +1511,13 @@ function makeViemChain(name: string, rpcUrl: string) {
   return defineChain({ id: 1, name, nativeCurrency: { name: 'INIT', symbol: 'INIT', decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } })
 }
 
-export const ROLLUP_A: ChainConfig = {
-  chainId: import.meta.env.VITE_ROLLUP_A_CHAIN_ID || 'ghostpay-rollup-a-1',
-  name: 'GhostPay Rollup A',
-  rpcUrl: import.meta.env.VITE_ROLLUP_A_RPC || 'http://localhost:8545',
-  restUrl: import.meta.env.VITE_ROLLUP_A_REST || 'http://localhost:1317',
-  viemChain: makeViemChain('GhostPay Rollup A', import.meta.env.VITE_ROLLUP_A_RPC || 'http://localhost:8545'),
-}
-
+// DEV-007: Single Settlement chain — all contracts deployed here
 export const SETTLEMENT: ChainConfig = {
-  chainId: import.meta.env.VITE_SETTLEMENT_CHAIN_ID || 'ghostpay-settlement-1',
+  chainId: import.meta.env.VITE_SETTLEMENT_CHAIN_ID || 'ghostpay-1',
   name: 'GhostPay Settlement',
-  rpcUrl: import.meta.env.VITE_SETTLEMENT_RPC || 'http://localhost:8546',
-  restUrl: import.meta.env.VITE_SETTLEMENT_REST || 'http://localhost:1318',
-  viemChain: makeViemChain('GhostPay Settlement', import.meta.env.VITE_SETTLEMENT_RPC || 'http://localhost:8546'),
-}
-
-export const ROLLUP_B: ChainConfig = {
-  chainId: import.meta.env.VITE_ROLLUP_B_CHAIN_ID || 'ghostpay-rollup-b-1',
-  name: 'GhostPay Rollup B',
-  rpcUrl: import.meta.env.VITE_ROLLUP_B_RPC || 'http://localhost:8547',
-  restUrl: import.meta.env.VITE_ROLLUP_B_REST || 'http://localhost:1319',
-  viemChain: makeViemChain('GhostPay Rollup B', import.meta.env.VITE_ROLLUP_B_RPC || 'http://localhost:8547'),
+  rpcUrl: import.meta.env.VITE_SETTLEMENT_RPC || 'http://localhost:8545',
+  restUrl: import.meta.env.VITE_SETTLEMENT_REST || 'http://localhost:1317',
+  viemChain: makeViemChain('GhostPay Settlement', import.meta.env.VITE_SETTLEMENT_RPC || 'http://localhost:8545'),
 }
 
 export const TICK_INTERVAL_MS = 30_000 // 30 seconds between stream ticks
@@ -1571,7 +1530,7 @@ export const POLL_INTERVAL_MS = 5_000  // 5 seconds between balance polls
 // File: frontend/src/config/contracts.ts
 // CAUTION: ASSUMED PATTERN — ABI may need adjustment after compilation
 
-import { ROLLUP_A, SETTLEMENT, ROLLUP_B } from './chains'
+import { SETTLEMENT } from './chains'
 
 export const STREAM_SENDER_ADDRESS = import.meta.env.VITE_STREAM_SENDER_ADDRESS || '0x'
 export const PAYMENT_REGISTRY_ADDRESS = import.meta.env.VITE_PAYMENT_REGISTRY_ADDRESS || '0x'
@@ -1768,10 +1727,10 @@ React hooks for contract reads, stream tick management, and oracle price queries
 ### Code
 
 #### File: frontend/src/hooks/useStreams.ts
-[ASSUMED] — viem public client pattern; InterwovenKit wallet address retrieval assumed
+[ASSUMED] — viem public client pattern; @initia/interwovenkit-react wallet address retrieval assumed
 ```typescript
 // File: frontend/src/hooks/useStreams.ts
-// CAUTION: ASSUMED PATTERN — InterwovenKit useInterwovenKit() shape may differ
+// CAUTION: ASSUMED PATTERN — @initia/interwovenkit-react use@initia/interwovenkit-react() shape may differ
 
 import { useQuery } from '@tanstack/react-query'
 import { createPublicClient, http } from 'viem'
@@ -1871,7 +1830,7 @@ export function useReceivedStreamIds(receiverAddress: string | undefined) {
 ```
 
 #### File: frontend/src/hooks/useStreamTick.ts
-[ASSUMED] — InterwovenKit submitTxBlock API shape assumed; setInterval pattern for ghost wallet ticks
+[ASSUMED] — @initia/interwovenkit-react submitTxBlock API shape assumed; setInterval pattern for ghost wallet ticks
 ```typescript
 // File: frontend/src/hooks/useStreamTick.ts
 // CAUTION: ASSUMED PATTERN — submitTxBlock signature and MsgCall format may differ
@@ -2275,10 +2234,10 @@ export function BridgeVisualization({ activeStreamCount, lastTickTime }: BridgeV
 ### Code
 
 #### File: frontend/src/pages/Dashboard.tsx
-[ASSUMED] — InterwovenKit hook shape assumed
+[ASSUMED] — @initia/interwovenkit-react hook shape assumed
 ```tsx
 // File: frontend/src/pages/Dashboard.tsx
-// CAUTION: ASSUMED PATTERN — useInterwovenKit() return shape may differ
+// CAUTION: ASSUMED PATTERN — use@initia/interwovenkit-react() return shape may differ
 
 import { Link } from 'react-router-dom'
 import { encodeFunctionData } from 'viem'
@@ -2302,7 +2261,7 @@ export function Dashboard({ address, wallet }: DashboardProps) {
     return (
       <div className="text-center py-20">
         <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
-        <p className="text-gray-400">Connect via InterwovenKit to view your streams.</p>
+        <p className="text-gray-400">Connect via @initia/interwovenkit-react to view your streams.</p>
       </div>
     )
   }
@@ -2380,10 +2339,10 @@ export function Dashboard({ address, wallet }: DashboardProps) {
 ```
 
 #### File: frontend/src/pages/CreateStream.tsx
-[ASSUMED] — InterwovenKit autoSign and submitTxBlock API shapes assumed
+[ASSUMED] — @initia/interwovenkit-react autoSign and submitTxBlock API shapes assumed
 ```tsx
 // File: frontend/src/pages/CreateStream.tsx
-// CAUTION: ASSUMED PATTERN — InterwovenKit autoSign and submitTxBlock may differ
+// CAUTION: ASSUMED PATTERN — @initia/interwovenkit-react autoSign and submitTxBlock may differ
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -2651,10 +2610,10 @@ export function DemoView({ senderAddress, receiverAddress, lastTickTime }: DemoV
 ### Code
 
 #### File: frontend/src/App.tsx
-[ASSUMED] — InterwovenKit provider setup and hook usage patterns assumed
+[ASSUMED] — @initia/interwovenkit-react provider setup and hook usage patterns assumed
 ```tsx
 // File: frontend/src/App.tsx
-// CAUTION: ASSUMED PATTERN — InterwovenKit provider props and hook return shapes may differ
+// CAUTION: ASSUMED PATTERN — @initia/interwovenkit-react provider props and hook return shapes may differ
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -2674,17 +2633,17 @@ const queryClient = new QueryClient({
   },
 })
 
-// WARNING: InterwovenKitProvider import and config shape is ASSUMED.
-// Real import: import { InterwovenKitProvider, useInterwovenKit } from '@initia/interwovenkit-react'
-// For build purposes, we define a placeholder that must be replaced with real InterwovenKit.
+// WARNING: @initia/interwovenkit-reactProvider import and config shape is ASSUMED.
+// Real import: import { @initia/interwovenkit-reactProvider, use@initia/interwovenkit-react } from '@initia/interwovenkit-react'
+// For build purposes, we define a placeholder that must be replaced with real @initia/interwovenkit-react.
 
 function App() {
-  // These would come from useInterwovenKit() in the real implementation
+  // These would come from use@initia/interwovenkit-react() in the real implementation
   const [address] = useState<string | undefined>(import.meta.env.VITE_DEMO_SENDER_ADDRESS)
   const [receiverAddress] = useState<string | undefined>(import.meta.env.VITE_DEMO_RECEIVER_ADDRESS)
   const [lastTickTime, setLastTickTime] = useState<number | null>(null)
 
-  // Placeholder for InterwovenKit hooks — replace with real implementation
+  // Placeholder for @initia/interwovenkit-react hooks — replace with real implementation
   const autoSign = {
     enable: async (chainId: string) => { console.log('autoSign.enable:', chainId) },
     enabled: false,
@@ -2852,79 +2811,36 @@ main().catch((err) => {
 
 ## 20. Configuration Reference
 
-### Environment Variables
+### Environment Variables (DEV-007: Single Settlement Chain)
 | Variable | Description | Example Value | Required |
 |----------|-------------|---------------|:---:|
 | DEPLOYER_PRIVATE_KEY | Private key for contract deployment | 0xac0974... | Yes |
-| ROLLUP_A_RPC | JSON-RPC URL for Rollup A | http://localhost:8545 | Yes |
-| SETTLEMENT_RPC | JSON-RPC URL for Settlement Minitia | http://localhost:8546 | Yes |
-| ROLLUP_B_RPC | JSON-RPC URL for Rollup B | http://localhost:8547 | Yes |
-| ROLLUP_A_REST | REST API URL for Rollup A | http://localhost:1317 | Yes |
-| SETTLEMENT_REST | REST API URL for Settlement | http://localhost:1318 | Yes |
-| ROLLUP_B_REST | REST API URL for Rollup B | http://localhost:1319 | Yes |
-| STREAM_DENOM | Native token denom for IBC transfers | uinit | Yes |
-| SETTLEMENT_CHANNEL | IBC channel from Rollup A to Settlement | channel-0 | Yes |
-| DEST_CHANNEL | IBC channel from Settlement to Rollup B | channel-1 | Yes |
+| SETTLEMENT_RPC | JSON-RPC URL for Settlement Minitia | http://localhost:8545 | Yes |
+| SETTLEMENT_REST | REST API URL for Settlement | http://localhost:1317 | Yes |
+| SETTLEMENT_CHAIN_ID | Cosmos chain ID | ghostpay-1 | Yes |
+| SETTLEMENT_EVM_CHAIN_ID | EVM chain ID | 4176544518788163 | Yes |
+| STREAM_DENOM | Native token denom | umin | Yes |
+| SETTLEMENT_CHANNEL | IBC channel to L1 | channel-0 | Yes |
+| DEST_CHANNEL | IBC destination channel | channel-0 | Yes |
 | ORACLE_ADDRESS | ConnectOracle contract on Settlement | 0x031ECb... | Yes |
 | ORACLE_PAIR_ID | Oracle pair for USD conversion | INIT/USD | Yes |
-| STREAM_SENDER_ADDRESS | Deployed StreamSender on Rollup A | DEPLOY_AND_RECORD | Yes |
-| PAYMENT_REGISTRY_ADDRESS | Deployed PaymentRegistry on Settlement | DEPLOY_AND_RECORD | Yes |
-| STREAM_RECEIVER_ADDRESS | Deployed StreamReceiver on Rollup B | DEPLOY_AND_RECORD | Yes |
-| VITE_ROLLUP_A_CHAIN_ID | Chain ID for frontend | ghostpay-rollup-a-1 | Yes |
-| VITE_SETTLEMENT_CHAIN_ID | Chain ID for frontend | ghostpay-settlement-1 | Yes |
-| VITE_ROLLUP_B_CHAIN_ID | Chain ID for frontend | ghostpay-rollup-b-1 | Yes |
+| STREAM_SENDER_ADDRESS | Deployed StreamSender | 0x69C58360fa715717C5D72Eb21EB3fDe69231A4A7 | Yes |
+| PAYMENT_REGISTRY_ADDRESS | Deployed PaymentRegistry | 0xaE53c86bA6a0C90e607E571FEc1F22DC591ED634 | Yes |
+| STREAM_RECEIVER_ADDRESS | Deployed StreamReceiver | 0x6890d4576c55410831CD3A01bf0e40F3C0B984A9 | Yes |
+| VITE_SETTLEMENT_CHAIN_ID | Chain ID for frontend | ghostpay-1 | Yes |
+| VITE_SETTLEMENT_EVM_CHAIN_ID | EVM chain ID for frontend | 4176544518788163 | Yes |
+| VITE_IBC_MODE | Enable IBC cross-chain mode | false | No |
+| VITE_GHOST_WALLET | Enable ghost wallet auto-sign | true | No |
 | VITE_DEMO_SENDER_ADDRESS | Demo sender EVM address | 0x... | No |
 | VITE_DEMO_RECEIVER_ADDRESS | Demo receiver EVM address | 0x... | No |
 
 ### Config File
 
 #### File: .env.example
-[VERIFIED]
+[VERIFIED — DEV-007: single Settlement chain]
 ```bash
 # File: .env.example
-
-# === Deployment ===
-# WARNING: Replace with your own key. NEVER commit a real private key.
-DEPLOYER_PRIVATE_KEY=YOUR_PRIVATE_KEY_HERE
-
-# === Chain RPCs ===
-ROLLUP_A_RPC=http://localhost:8545
-SETTLEMENT_RPC=http://localhost:8546
-ROLLUP_B_RPC=http://localhost:8547
-ROLLUP_A_REST=http://localhost:1317
-SETTLEMENT_REST=http://localhost:1318
-ROLLUP_B_REST=http://localhost:1319
-
-# === IBC Config ===
-STREAM_DENOM=uinit
-SETTLEMENT_CHANNEL=channel-0
-DEST_CHANNEL=channel-1
-
-# === Oracle ===
-ORACLE_ADDRESS=0x031ECb63480983FD216D17BB6e1d393f3816b72F
-ORACLE_PAIR_ID=INIT/USD
-
-# === Contract Addresses (fill after deployment) ===
-STREAM_SENDER_ADDRESS=DEPLOY_AND_RECORD
-PAYMENT_REGISTRY_ADDRESS=DEPLOY_AND_RECORD
-STREAM_RECEIVER_ADDRESS=DEPLOY_AND_RECORD
-
-# === Frontend (Vite) ===
-VITE_ROLLUP_A_RPC=http://localhost:8545
-VITE_SETTLEMENT_RPC=http://localhost:8546
-VITE_ROLLUP_B_RPC=http://localhost:8547
-VITE_ROLLUP_A_REST=http://localhost:1317
-VITE_SETTLEMENT_REST=http://localhost:1318
-VITE_ROLLUP_B_REST=http://localhost:1319
-VITE_ROLLUP_A_CHAIN_ID=ghostpay-rollup-a-1
-VITE_SETTLEMENT_CHAIN_ID=ghostpay-settlement-1
-VITE_ROLLUP_B_CHAIN_ID=ghostpay-rollup-b-1
-VITE_STREAM_SENDER_ADDRESS=DEPLOY_AND_RECORD
-VITE_PAYMENT_REGISTRY_ADDRESS=DEPLOY_AND_RECORD
-VITE_STREAM_RECEIVER_ADDRESS=DEPLOY_AND_RECORD
-VITE_DEST_CHANNEL=channel-1
-VITE_DEMO_SENDER_ADDRESS=
-VITE_DEMO_RECEIVER_ADDRESS=
+# See root .env.example for canonical reference — all vars reflect single-chain (DEV-007)
 ```
 
 ---
@@ -2950,43 +2866,31 @@ VITE_DEMO_RECEIVER_ADDRESS=
 cd contracts && forge test --via-ir -vvv
 ```
 
-### Integration Testing (Manual — requires live relayers)
-1. Deploy all 3 contracts to respective minitias
-2. Create a stream via StreamSender on Rollup A
-3. Manually call sendTick() and verify IBC packet delivery
-4. Check PaymentRegistry state on Settlement
-5. Check StreamReceiver balance on Rollup B
-6. Claim funds on Rollup B
+### Integration Testing (Manual — requires live chain)
+1. Deploy all 3 contracts to Settlement Minitia (ghostpay-1)
+2. Create a stream via StreamSender
+3. Manually call sendTick() and verify PaymentRegistry state
+4. Check StreamReceiver balance
+5. Claim funds via StreamReceiver
 
 ---
 
-## 22. Deployment Sequence
+## 22. Deployment Sequence (DEV-007: Single Settlement Chain)
 
 | Step | Action | Command | Verify |
 |:---:|--------|---------|--------|
-| 1 | Deploy Settlement Minitia | `weave rollup launch` (EVM, oracle=yes) | `curl http://localhost:8546` returns JSON-RPC response |
-| 2 | Deploy Rollup A (or use existing testnet minitia) | `weave rollup launch` or use testnet | JSON-RPC responds |
-| 3 | Deploy Rollup B (or use existing testnet minitia) | `weave rollup launch` or use testnet | JSON-RPC responds |
-| 4 | Start IBC relayer L1↔Settlement | `weave relayer start` | `weave relayer status` shows active |
-| 5 | Start IBC relayer L1↔Rollup A | `weave relayer start` | Active relayer |
-| 6 | Start IBC relayer L1↔Rollup B | `weave relayer start` | Active relayer |
-| 7 | Record IBC channel IDs | `weave relayer channels` | Save to .env |
-| 8 | Install contract deps | `cd contracts && forge install OpenZeppelin/openzeppelin-contracts --no-commit` | `lib/` populated |
-| 9 | Query oracle address | `curl $SETTLEMENT_REST/minievm/evm/v1/connect_oracle` | Save address to .env |
-| 10 | Deploy StreamReceiver on Rollup B | See Deploy Script step 1 | Address logged |
-| 11 | Deploy PaymentRegistry on Settlement | See Deploy Script step 2 | Address logged |
-| 12 | Deploy StreamSender on Rollup A | See Deploy Script step 3 | Address logged |
-| 13 | Update .env with all addresses | Manual | All DEPLOY_AND_RECORD replaced |
-| 14 | Run seed-demo.ts | `npx tsx scripts/seed-demo.ts` | Stream created, tx hash logged |
-| 15 | Install frontend deps | `cd frontend && npm install` | No errors |
-| 16 | Start frontend dev server | `cd frontend && npm run dev` | http://localhost:3000 loads |
+| 1 | Launch Settlement Minitia (ghostpay-1) | `minitiad start --home ~/.minitia` | `curl http://localhost:8545` returns JSON-RPC response |
+| 2 | Install contract deps | `cd contracts && forge install OpenZeppelin/openzeppelin-contracts --no-commit` | `lib/` populated |
+| 3 | Query oracle address | `curl $SETTLEMENT_REST/minievm/evm/v1/connect_oracle` | Save address to .env |
+| 4 | Deploy all contracts to Settlement | `forge script script/Deploy.s.sol:DeployAll --rpc-url $SETTLEMENT_RPC --broadcast --via-ir --with-gas-price 0 --skip-simulation` | All 3 addresses logged |
+| 5 | Update .env with deployed addresses | Manual | All addresses filled |
+| 6 | Seed demo data | `bash scripts/seed-demo.sh` | Stream created, tx hash logged |
+| 7 | Install frontend deps | `cd frontend && npm install --legacy-peer-deps` | No errors |
+| 8 | Start frontend dev server | `cd frontend && npm run dev` | http://localhost:3000 loads |
 
 ### Dependencies
-- Steps 1-3 must complete before steps 4-6 (relayers need running chains)
-- Steps 4-7 must complete before steps 10-12 (deploy needs IBC channels)
-- Step 10 must complete before step 11 (PaymentRegistry needs StreamReceiver address)
-- Step 11 must complete before step 12 (StreamSender needs PaymentRegistry address)
-- Steps 10-13 must complete before step 14 (seed needs deployed contracts)
+- Step 1 must complete before step 3-4 (deploy needs running chain)
+- Step 4 must complete before steps 5-6 (seed needs deployed contracts)
 
 ---
 
@@ -2995,39 +2899,32 @@ cd contracts && forge test --via-ir -vvv
 ### On-Chain Addresses
 | Item | Address | Network | Source |
 |------|---------|---------|--------|
-| ICosmos precompile | 0x00000000000000000000000000000000000000f1 | All EVM Minitias | [VERIFIED] Initia docs |
-| ConnectOracle | Query `${REST_URL}/minievm/evm/v1/connect_oracle` | Settlement Minitia | [VERIFIED] Initia docs |
-| StreamSender | DEPLOY_AND_RECORD | Rollup A | Deploy step 12 |
-| PaymentRegistry | DEPLOY_AND_RECORD | Settlement Minitia | Deploy step 11 |
-| StreamReceiver | DEPLOY_AND_RECORD | Rollup B | Deploy step 10 |
+| ICosmos precompile | 0x00000000000000000000000000000000000000f1 | Settlement (ghostpay-1) | [VERIFIED] Initia docs |
+| ConnectOracle | Query `${REST_URL}/minievm/evm/v1/connect_oracle` | Settlement (ghostpay-1) | [VERIFIED] Initia docs |
+| StreamSender | 0x69C58360fa715717C5D72Eb21EB3fDe69231A4A7 | Settlement (ghostpay-1) | Deployed |
+| PaymentRegistry | 0xaE53c86bA6a0C90e607E571FEc1F22DC591ED634 | Settlement (ghostpay-1) | Deployed |
+| StreamReceiver | 0x6890d4576c55410831CD3A01bf0e40F3C0B984A9 | Settlement (ghostpay-1) | Deployed |
 
-### API Endpoints
+### API Endpoints (DEV-007: single chain)
 | Service | URL | Auth |
 |---------|-----|------|
-| Rollup A JSON-RPC | http://localhost:8545 | None |
-| Settlement JSON-RPC | http://localhost:8546 | None |
-| Rollup B JSON-RPC | http://localhost:8547 | None |
-| Rollup A REST | http://localhost:1317 | None |
-| Settlement REST | http://localhost:1318 | None |
-| Rollup B REST | http://localhost:1319 | None |
+| Settlement JSON-RPC | http://localhost:8545 | None |
+| Settlement REST | http://localhost:1317 | None |
 | Initia L1 RPC | https://rpc.testnet.initia.xyz | None |
 | Initia Faucet | https://faucet.testnet.initia.xyz | Gitcoin Passport |
 
 ---
 
-## 24. Integration Map
+## 24. Integration Map (DEV-007: Single Chain)
 
 | From | To | Protocol | Credential (env var) | Health Check | Priority |
 |------|----|:--------:|---------------------|:------------:|:--------:|
-| Frontend | StreamSender | JSON-RPC | `VITE_ROLLUP_A_RPC` | `curl -X POST -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' $ROLLUP_A_RPC` | CRITICAL |
-| Frontend | StreamReceiver | JSON-RPC | `VITE_ROLLUP_B_RPC` | `curl -X POST -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' $ROLLUP_B_RPC` | CRITICAL |
+| Frontend | All Contracts | JSON-RPC | `VITE_SETTLEMENT_RPC` | `curl -X POST -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' $SETTLEMENT_RPC` | CRITICAL |
 | Frontend | Oracle REST | HTTP | `VITE_SETTLEMENT_REST` | `curl $SETTLEMENT_REST/slinky/oracle/v1/get_price?currency_pair_id=ETH/USD` | STANDARD |
-| StreamSender | ICosmos(0xf1) | Precompile | None | `cast call 0xf1 "to_cosmos_address(address)" $DEPLOYER --rpc-url $ROLLUP_A_RPC` | CRITICAL |
-| StreamSender | PaymentRegistry | IBC+Hook | `SETTLEMENT_CHANNEL` | `weave relayer status` shows active | CRITICAL |
+| StreamSender | ICosmos(0xf1) | Precompile | None | `cast call 0xf1 "to_cosmos_address(address)" $DEPLOYER --rpc-url $SETTLEMENT_RPC` | CRITICAL |
+| StreamSender | PaymentRegistry | Direct EVM call | Same chain | Contract exists at address | CRITICAL |
 | PaymentRegistry | IConnectOracle | Contract call | `ORACLE_ADDRESS` | `cast call $ORACLE_ADDRESS "get_all_currency_pairs()" --rpc-url $SETTLEMENT_RPC` | STANDARD |
-| PaymentRegistry | StreamReceiver | IBC+Hook | `DEST_CHANNEL` | `weave relayer status` shows active | CRITICAL |
-| IBC Relayer A | L1↔Settlement | IBC packets | Relayer key | `weave relayer status` | CRITICAL |
-| IBC Relayer B | L1↔Rollup B | IBC packets | Relayer key | `weave relayer status` | CRITICAL |
+| PaymentRegistry | StreamReceiver | Direct EVM call | Same chain | Contract exists at address | CRITICAL |
 
 ---
 
@@ -3038,7 +2935,7 @@ cd contracts && forge test --via-ir -vvv
 |---------|----------|:--------------:|
 | Stream creation | User can create a payment stream with amount and duration; funds deposited on-chain | HIGH |
 | Ghost wallet (auto-sign) | Auto-sign enables without error; subsequent ticks fire without wallet popups | HIGH |
-| Cross-rollup bridge | Stream ticks visibly cross from Rollup A through Settlement to Rollup B via IBC | HIGH |
+| On-chain streaming | Stream ticks flow through StreamSender → PaymentRegistry → StreamReceiver on Settlement chain | HIGH |
 | Receiver balance | Receiver's claimable balance increases in real-time as ticks arrive | HIGH |
 | Split-screen demo | Demo view shows sender, bridge animation, and receiver simultaneously | HIGH |
 | Oracle USD display | Stream amounts show USD equivalent from oracle price feed | MED |
@@ -3055,12 +2952,12 @@ cd contracts && forge test --via-ir -vvv
 | Zero amount | 0 INIT | Revert: "Must deposit tokens" |
 | Zero duration | 10 INIT, 0 seconds | Revert: "Duration must be positive" |
 
-#### Cross-Rollup Bridge
+#### On-Chain Streaming
 | Scenario | Input | Expected Output |
 |----------|-------|----------------|
-| Happy path | Active stream, sendTick called | IBC packet sent, PaymentRegistry processes, StreamReceiver credits |
+| Happy path | Active stream, sendTick called | PaymentRegistry processes, StreamReceiver credits |
 | Expired stream | Stream past endTime | Revert: "Stream expired" |
-| Relayer down | sendTick called, no relayer | Tx succeeds on-chain but IBC packet not relayed; timeout after 10min |
+| Contract paused | sendTick called while paused | Revert: "Pausable: paused" |
 
 #### Receiver Balance
 | Scenario | Input | Expected Output |
@@ -3076,9 +2973,8 @@ cd contracts && forge test --via-ir -vvv
 ### Assets at Risk
 | Asset | Value | Where Stored |
 |-------|-------|-------------|
-| Deposited stream funds | User tokens locked in StreamSender | StreamSender contract on Rollup A |
-| In-transit IBC funds | Tokens during IBC transfer | IBC escrow accounts |
-| Claimable funds | Received tokens pending claim | StreamReceiver contract on Rollup B |
+| Deposited stream funds | User tokens locked in StreamSender | StreamSender contract on Settlement |
+| Claimable funds | Received tokens pending claim | StreamReceiver contract on Settlement |
 | Deployer private key | Controls all contracts | .env file (local only) |
 
 ### Attack Surfaces
@@ -3106,7 +3002,7 @@ cd contracts && forge test --via-ir -vvv
 | Dashboard | Time to Interactive | < 3000ms | Lighthouse |
 | Stream creation tx | Confirmation time | < 3000ms | Timestamp diff |
 | IBC hop (single) | Packet delivery | < 10000ms | Log timestamp diff |
-| Full tick cycle (2 hops) | Rollup A → Rollup B | < 20000ms | Log timestamp diff |
+| Full tick cycle | sendTick → receiver credit | < 5000ms | Log timestamp diff |
 | Balance poll | Response time | < 500ms | curl timing |
 | Oracle query | Response time | < 1000ms | curl timing |
 

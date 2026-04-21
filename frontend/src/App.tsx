@@ -1,14 +1,36 @@
 // DEV-007: All contracts on Settlement — single chain config
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+// InterwovenKit migration: replaces @initia/react-wallet-widget per hackathon requirement
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WalletWidgetProvider, useWallet, TESTNET } from '@initia/react-wallet-widget'
+import { createConfig, http, WagmiProvider } from 'wagmi'
+import { mainnet } from 'wagmi/chains'
+import {
+  InterwovenKitProvider,
+  injectStyles,
+  initiaPrivyWalletConnector,
+  useInterwovenKit,
+  TESTNET,
+} from '@initia/interwovenkit-react'
+import css from '@initia/interwovenkit-react/styles.css?inline'
 import { Layout } from './components/Layout'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Landing } from './pages/Landing'
 import { Dashboard } from './pages/Dashboard'
 import { CreateStream } from './pages/CreateStream'
 import { DemoView } from './pages/DemoView'
 import { SETTLEMENT } from './config/chains'
 import { useState, useCallback, useRef } from 'react'
+import { useAutoSign } from './hooks/useAutoSign'
+import type { CosmosMsg } from './types'
+
+// Inject InterwovenKit styles into Shadow DOM
+injectStyles(css)
+
+const wagmiConfig = createConfig({
+  connectors: [initiaPrivyWalletConnector],
+  chains: [mainnet],
+  transports: { [mainnet.id]: http() },
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,34 +42,39 @@ const queryClient = new QueryClient({
 })
 
 function AppRoutes() {
-  const wallet = useWallet()
-  const walletRef = useRef(wallet)
-  walletRef.current = wallet
-  const address = wallet.address || undefined
+  const { address: rawAddress, openConnect, requestTxBlock } = useInterwovenKit()
+  const address = rawAddress || undefined
+  const requestTxBlockRef = useRef(requestTxBlock)
+  requestTxBlockRef.current = requestTxBlock
   const [lastTickTime, setLastTickTime] = useState<number | null>(null)
 
-  const submitTxBlock = useCallback(async (params: { msgs: any[] }) => {
-    const result = await walletRef.current.requestTx({
-      messages: params.msgs,
+  const submitTxBlock = useCallback(async (params: { msgs: CosmosMsg[] }) => {
+    const result = await requestTxBlockRef.current({
+      messages: params.msgs as import('@cosmjs/proto-signing').EncodeObject[],
     })
     setLastTickTime(Date.now())
     return result
   }, [])
 
+  const ghostWallet = useAutoSign(address, submitTxBlock)
+
   const autoSign = {
     enable: async (_chainId: string) => {
-      if (!wallet.address) wallet.onboard()
+      if (!address) { openConnect(); return }
+      await ghostWallet.enable()
     },
-    enabled: !!wallet.address,
+    enabled: ghostWallet.isActive,
+    status: ghostWallet.status,
+    disable: ghostWallet.disable,
   }
 
   const dashboardWallet = address ? {
     address,
-    submitTxBlock: async (_chainId: string, msgs: unknown[]) => { await submitTxBlock({ msgs: msgs as any[] }) },
+    submitTxBlock: async (_chainId: string, msgs: unknown[]) => { await submitTxBlock({ msgs: msgs as CosmosMsg[] }) },
   } : null
 
   return (
-    <Layout>
+    <Layout ghostWalletActive={ghostWallet.isActive}>
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route
@@ -76,20 +103,43 @@ function AppRoutes() {
             />
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
   )
 }
 
+function NotFound() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center px-5">
+      <div className="text-center">
+        <h2 className="text-4xl font-bold mb-3 font-head">404</h2>
+        <p className="text-gray-400 mb-6">This page doesn't exist.</p>
+        <Link to="/" className="btn-primary px-6 py-2.5 text-sm">Back to Home</Link>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   return (
-    <WalletWidgetProvider {...TESTNET}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </QueryClientProvider>
-    </WalletWidgetProvider>
+    <ErrorBoundary>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <InterwovenKitProvider
+            {...TESTNET}
+            theme="dark"
+            enableAutoSign={{
+              [SETTLEMENT.chainId]: ['/minievm.evm.v1.MsgCall'],
+            }}
+          >
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </InterwovenKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
+    </ErrorBoundary>
   )
 }
 

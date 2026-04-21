@@ -43,7 +43,7 @@ contract StreamSenderEdgeCases is Test {
     address constant ICOSMOS = 0x00000000000000000000000000000000000000f1;
 
     function setUp() public {
-        sender = new StreamSender("umin", registryAddr);
+        sender = new StreamSender("umin", registryAddr, false);
         vm.deal(alice, 100 ether);
 
         // Mock all ICosmos calls
@@ -116,12 +116,10 @@ contract StreamSenderEdgeCases is Test {
     }
 
     function test_createStream_emptyStrings() public {
-        // Empty receiver/channel — contract doesn't validate strings
+        // M-2: Empty receiver now reverts
         vm.prank(alice);
-        bytes32 id = sender.createStream("", "", "", 1 ether, 300);
-        StreamSender.StreamInfo memory info = sender.getStreamInfo(id);
-        assertTrue(info.active);
-        assertEq(info.totalAmount, 1 ether);
+        vm.expectRevert("Empty receiver");
+        sender.createStream("", "", "", 1 ether, 300);
     }
 
     function test_createStream_uniqueStreamIds() public {
@@ -427,14 +425,14 @@ contract PaymentRegistryEdgeCases is Test {
 
     function setUp() public {
         owner = address(this);
-        registry = new PaymentRegistry("uinit", address(0), "INIT/USD", receiverContract);
+        registry = new PaymentRegistry("uinit", address(0), "INIT/USD", receiverContract, false);
         registry.setStreamSender(senderAddr);
 
         vm.mockCall(ICOSMOS, abi.encodeWithSignature("execute_cosmos(string,uint64)"), abi.encode(true));
         vm.mockCall(ICOSMOS, abi.encodeWithSignature("to_cosmos_address(address)"), abi.encode("init1mock..."));
         vm.mockCall(
             receiverContract,
-            abi.encodeWithSignature("onReceivePayment(bytes32,string,uint256)"),
+            abi.encodeWithSignature("onReceivePayment(bytes32,string,string,uint256)"),
             abi.encode()
         );
     }
@@ -457,14 +455,13 @@ contract PaymentRegistryEdgeCases is Test {
 
     function test_processPayment_amountExceedsTotalAmount() public {
         bytes32 id = keccak256("s");
-        // Send 11 ether on a 10 ether stream
+        // H-1: Send 11 ether on a 10 ether stream — capped at 10
         vm.prank(senderAddr);
         registry.processPayment(id, "s", "r", "ch", 10 ether, block.timestamp + 300, 11 ether, 1, 1 ether);
 
         PaymentRegistry.Stream memory s = registry.getStream(id);
-        assertEq(s.amountSent, 11 ether);
+        assertEq(s.amountSent, 10 ether); // H-1: capped at totalAmount
         assertEq(uint(s.status), uint(PaymentRegistry.StreamStatus.COMPLETED));
-        // BUG FINDING: No guard against overpayment — amountSent can exceed totalAmount
     }
 
     function test_processPayment_maxUint256Amount() public {
@@ -560,8 +557,9 @@ contract PaymentRegistryEdgeCases is Test {
     // --- setStreamSender edge cases ---
 
     function test_setStreamSender_unauthorizedCaller() public {
-        vm.prank(makeAddr("rando"));
-        vm.expectRevert("Not owner");
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, rando));
         registry.setStreamSender(makeAddr("new"));
     }
 
@@ -573,14 +571,16 @@ contract PaymentRegistryEdgeCases is Test {
     // --- setOraclePairId / setDenom edge cases ---
 
     function test_setOraclePairId_unauthorizedCaller() public {
-        vm.prank(makeAddr("rando"));
-        vm.expectRevert("Not owner");
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, rando));
         registry.setOraclePairId("ETH/USD");
     }
 
     function test_setDenom_unauthorizedCaller() public {
-        vm.prank(makeAddr("rando"));
-        vm.expectRevert("Not owner");
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, rando));
         registry.setDenom("uatom");
     }
 
@@ -600,12 +600,12 @@ contract PaymentRegistryEdgeCases is Test {
     function test_processPayment_withOracle() public {
         // Deploy new registry with oracle
         address oracleAddr = makeAddr("oracle");
-        PaymentRegistry reg2 = new PaymentRegistry("uinit", oracleAddr, "INIT/USD", receiverContract);
+        PaymentRegistry reg2 = new PaymentRegistry("uinit", oracleAddr, "INIT/USD", receiverContract, false);
         reg2.setStreamSender(senderAddr);
 
         vm.mockCall(
             receiverContract,
-            abi.encodeWithSignature("onReceivePayment(bytes32,string,uint256)"),
+            abi.encodeWithSignature("onReceivePayment(bytes32,string,string,uint256)"),
             abi.encode()
         );
 
@@ -633,12 +633,12 @@ contract PaymentRegistryEdgeCases is Test {
 
     function test_processPayment_oracleReverts() public {
         address oracleAddr = makeAddr("oracle");
-        PaymentRegistry reg2 = new PaymentRegistry("uinit", oracleAddr, "INIT/USD", receiverContract);
+        PaymentRegistry reg2 = new PaymentRegistry("uinit", oracleAddr, "INIT/USD", receiverContract, false);
         reg2.setStreamSender(senderAddr);
 
         vm.mockCall(
             receiverContract,
-            abi.encodeWithSignature("onReceivePayment(bytes32,string,uint256)"),
+            abi.encodeWithSignature("onReceivePayment(bytes32,string,string,uint256)"),
             abi.encode()
         );
 
@@ -698,13 +698,13 @@ contract StreamReceiverEdgeCases is Test {
     function test_onReceivePayment_unauthorizedCaller() public {
         vm.prank(makeAddr("rando"));
         vm.expectRevert("Only PaymentRegistry");
-        receiver.onReceivePayment(keccak256("s"), "init1r...", 1 ether);
+        receiver.onReceivePayment(keccak256("s"), "init1sender...", "init1r...", 1 ether);
     }
 
     function test_onReceivePayment_zeroAmount() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", 0);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 0);
 
         assertEq(receiver.getClaimable(mockEvmAddr), 0);
         // Zero amount accepted — no guard
@@ -713,7 +713,7 @@ contract StreamReceiverEdgeCases is Test {
     function test_onReceivePayment_maxUint256() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", type(uint256).max);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", type(uint256).max);
 
         assertEq(receiver.getClaimable(mockEvmAddr), type(uint256).max);
     }
@@ -721,17 +721,17 @@ contract StreamReceiverEdgeCases is Test {
     function test_onReceivePayment_overflowClaimable() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", type(uint256).max);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", type(uint256).max);
 
         vm.prank(paymentRegistryAddr);
         vm.expectRevert(); // arithmetic overflow
-        receiver.onReceivePayment(id, "init1r...", 1);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 1);
     }
 
     function test_onReceivePayment_emptyReceiver() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "", 1 ether);
+        receiver.onReceivePayment(id, "init1sender...", "", 1 ether);
         // Depends on to_evm_address mock — empty string converts to mockEvmAddr
         assertEq(receiver.getClaimable(mockEvmAddr), 1 ether);
     }
@@ -743,7 +743,7 @@ contract StreamReceiverEdgeCases is Test {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
         vm.expectRevert("Address conversion unavailable");
-        receiver.onReceivePayment(id, "init1bad...", 1 ether);
+        receiver.onReceivePayment(id, "init1sender...", "init1bad...", 1 ether);
     }
 
     function test_onReceivePayment_multipleStreamsOneReceiver() public {
@@ -751,9 +751,9 @@ contract StreamReceiverEdgeCases is Test {
         bytes32 id2 = keccak256("s2");
 
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id1, "init1r...", 3 ether);
+        receiver.onReceivePayment(id1, "init1sender...", "init1r...", 3 ether);
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id2, "init1r...", 7 ether);
+        receiver.onReceivePayment(id2, "init1sender...", "init1r...", 7 ether);
 
         assertEq(receiver.getClaimable(mockEvmAddr), 10 ether);
         assertEq(receiver.getIncomingStreams(mockEvmAddr).length, 2);
@@ -775,7 +775,7 @@ contract StreamReceiverEdgeCases is Test {
     function test_claim_cosmosExecuteFails() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", 5 ether);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 5 ether);
 
         // Override cosmos mock to fail
         vm.mockCall(ICOSMOS, abi.encodeWithSignature("execute_cosmos(string,uint64)"), abi.encode(false));
@@ -792,7 +792,7 @@ contract StreamReceiverEdgeCases is Test {
     function test_claim_doubleClaimReverts() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", 5 ether);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 5 ether);
 
         vm.prank(mockEvmAddr);
         receiver.claim();
@@ -805,14 +805,14 @@ contract StreamReceiverEdgeCases is Test {
     function test_claim_thenReceiveMoreAndClaimAgain() public {
         bytes32 id = keccak256("s");
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", 3 ether);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 3 ether);
 
         vm.prank(mockEvmAddr);
         receiver.claim();
         assertEq(receiver.getClaimable(mockEvmAddr), 0);
 
         vm.prank(paymentRegistryAddr);
-        receiver.onReceivePayment(id, "init1r...", 2 ether);
+        receiver.onReceivePayment(id, "init1sender...", "init1r...", 2 ether);
 
         vm.prank(mockEvmAddr);
         receiver.claim();
@@ -822,22 +822,23 @@ contract StreamReceiverEdgeCases is Test {
     // --- Owner functions ---
 
     function test_setDenom_unauthorizedCaller() public {
-        vm.prank(makeAddr("rando"));
-        vm.expectRevert("Not owner");
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, rando));
         receiver.setDenom("newdenom");
     }
 
     function test_setPaymentRegistry_unauthorizedCaller() public {
-        vm.prank(makeAddr("rando"));
-        vm.expectRevert("Not owner");
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, rando));
         receiver.setPaymentRegistry(makeAddr("new"));
     }
 
     function test_setPaymentRegistry_zeroAddress() public {
-        // No zero-address check in StreamReceiver.setPaymentRegistry
+        // M-1: Zero-address guard now prevents this
+        vm.expectRevert("Zero address");
         receiver.setPaymentRegistry(address(0));
-        assertEq(receiver.paymentRegistry(), address(0));
-        // BUG FINDING: No zero-address guard on setPaymentRegistry — can brick onReceivePayment access
     }
 
     function test_setDenom_emptyString() public {

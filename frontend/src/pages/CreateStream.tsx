@@ -6,11 +6,18 @@ import { encodeFunctionData } from 'viem'
 import { STREAM_SENDER_ADDRESS, STREAM_SENDER_ABI } from '../config/contracts'
 import { SETTLEMENT } from '../config/chains'
 import { useOraclePrice, formatUsdValue } from '../hooks/useOracle'
+import { FEATURES } from '../config/feature-flags'
+import type { CosmosMsg } from '../types'
 
 interface CreateStreamProps {
   address: string | undefined
-  autoSign: { enable: (chainId: string) => Promise<void>; enabled: boolean }
-  submitTxBlock: (params: { msgs: any[] }) => Promise<any>
+  autoSign: {
+    enable: (chainId: string) => Promise<void>
+    enabled: boolean
+    status: 'idle' | 'granting' | 'active' | 'error'
+    disable: () => Promise<void>
+  }
+  submitTxBlock: (params: { msgs: CosmosMsg[] }) => Promise<unknown>
 }
 
 export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamProps) {
@@ -22,15 +29,13 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
   const [duration, setDuration] = useState('300')
   const [destChannel, setDestChannel] = useState(import.meta.env.VITE_DEST_CHANNEL || 'channel-0')
   const [isCreating, setIsCreating] = useState(false)
-  const [autoSignEnabled, setAutoSignEnabled] = useState(false)
   const [txError, setTxError] = useState<string | null>(null)
 
-  const handleEnableAutoSign = async () => {
-    try {
+  const handleToggleAutoSign = async () => {
+    if (autoSign.enabled) {
+      await autoSign.disable()
+    } else {
       await autoSign.enable(SETTLEMENT.chainId)
-      setAutoSignEnabled(true)
-    } catch (err) {
-      console.error('Auto-sign enable failed:', err)
     }
   }
 
@@ -67,6 +72,18 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
     }
   }
 
+  const receiverError = (() => {
+    if (!receiver) return null
+    if (!receiver.startsWith('init1')) return 'Address must start with "init1"'
+    if (receiver.length < 39 || receiver.length > 59) return 'Invalid address length'
+    // bech32 charset: lowercase alphanumeric excluding 1, b, i, o
+    const bech32Data = receiver.slice(5) // after "init1"
+    if (!/^[023456789acdefghjklmnpqrstuvwxyz]+$/.test(bech32Data)) {
+      return 'Invalid characters in address'
+    }
+    return null
+  })()
+
   const amountBigInt = (() => {
     try { return amount && /^\d+$/.test(amount) ? BigInt(amount) : 0n } catch { return 0n }
   })()
@@ -97,6 +114,7 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
             placeholder="init1..."
             className="input-field"
           />
+          {receiverError && <p className="text-red-400 text-xs mt-1">{receiverError}</p>}
         </Field>
 
         <Field label="Amount" hint="Total payment in umin (1 MIN = 1,000,000 umin)">
@@ -129,14 +147,16 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
           </select>
         </Field>
 
-        <Field label="Destination Channel">
-          <input
-            type="text"
-            value={destChannel}
-            onChange={(e) => setDestChannel(e.target.value)}
-            className="input-field"
-          />
-        </Field>
+        {FEATURES.IBC_MODE && (
+          <Field label="Destination Channel" hint="IBC channel for cross-rollup transfer">
+            <input
+              type="text"
+              value={destChannel}
+              onChange={(e) => setDestChannel(e.target.value)}
+              className="input-field"
+            />
+          </Field>
+        )}
 
         {/* Rate preview */}
         {ratePerTick > 0n && (
@@ -156,23 +176,39 @@ export function CreateStream({ address, autoSign, submitTxBlock }: CreateStreamP
           </div>
         )}
 
-        {/* Auto-sign */}
-        {!autoSignEnabled && (
-          <button onClick={handleEnableAutoSign} className="btn-secondary w-full py-3 text-sm">
+        {/* Ghost Wallet auto-sign */}
+        {FEATURES.GHOST_WALLET && autoSign.status === 'granting' && (
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-ghost-950/30 border border-ghost-700/20">
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+            <span className="text-sm text-yellow-300">Setting up Ghost Wallet...</span>
+          </div>
+        )}
+        {FEATURES.GHOST_WALLET && autoSign.status === 'error' && (
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-red-950/30 border border-red-700/20">
+            <div className="w-2 h-2 rounded-full bg-red-400" />
+            <span className="text-sm text-red-300">Ghost Wallet setup failed — retrying...</span>
+          </div>
+        )}
+        {FEATURES.GHOST_WALLET && autoSign.enabled ? (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-ghost-950/30 border border-ghost-700/20">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-ghost-400 animate-pulse" />
+              <span className="text-sm text-ghost-300">Ghost Wallet active — ticks auto-sign</span>
+            </div>
+            <button onClick={handleToggleAutoSign} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+              Disable
+            </button>
+          </div>
+        ) : FEATURES.GHOST_WALLET && autoSign.status === 'idle' && (
+          <button onClick={handleToggleAutoSign} className="btn-secondary w-full py-3 text-sm">
             Enable Ghost Wallet (Auto-Sign)
           </button>
-        )}
-        {autoSignEnabled && (
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-ghost-950/30 border border-ghost-700/20">
-            <div className="w-2 h-2 rounded-full bg-ghost-400 animate-pulse" />
-            <span className="text-sm text-ghost-300">Ghost Wallet enabled</span>
-          </div>
         )}
 
         {/* Submit */}
         <button
           onClick={handleCreate}
-          disabled={isCreating || !receiver || !amount || !senderCosmos || !address}
+          disabled={isCreating || !receiver || !amount || !senderCosmos || !address || !!receiverError}
           className="btn-primary w-full py-3.5 text-sm"
         >
           {isCreating ? 'Creating Stream...' : 'Start Stream'}

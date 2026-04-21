@@ -5,6 +5,8 @@
 **Deadline:** 2026-04-15
 **Version:** V1
 
+> **DEV-007:** All three contracts (StreamSender, PaymentRegistry, StreamReceiver) are deployed on a single Settlement rollup. The original 3-chain architecture was simplified due to Initia's hub-and-spoke IBC topology.
+
 ---
 
 ## 1. Project Overview
