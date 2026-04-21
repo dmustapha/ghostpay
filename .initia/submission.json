@@ -1,7 +1,7 @@
 {
   "project_name": "GhostPay",
   "repo_url": "https://github.com/dmustapha/ghostpay",
-  "commit_sha": "PENDING",
+  "commit_sha": "4b8d475eb2c9eeaf72a2c7af3073998e34a9345e",
   "rollup_chain_id": "ghostpay-1",
   "deployed_address": "0x69C58360fa715717C5D72Eb21EB3fDe69231A4A7",
   "vm": "evm",
